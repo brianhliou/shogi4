@@ -20,6 +20,11 @@ server was down at scaffold time and the PnP PDF was never archived.
 ## Board & pieces
 
 - **Board: 4×4, 16 squares.** **[primary — board graphic]**
+- **Starting setup** (BGG board photo, image 1830896): each side's back row, reading from the
+  royal's corner, is **Royal · Fox · Raccoon-dog · Tapir**, with the **Carp one square ahead of
+  the royal**. Mirrored for the opponent (royal = Pheasant). The royal starts in a corner and the
+  Carp shields it. The two **farm/hand zones flank the 4×4 grid** (left and right), outside the
+  playing board. **[primary]**
 - **5 pieces per side**, one of each type: **Carp, Tapir, Raccoon-dog, Fox**, and a **royal** that
   is a **Crane** (one player) or **Pheasant** (the other) — differently themed, both move as a king. **[primary]**
 - Total 10 pieces; the 8 non-royals are capturable/droppable, the 2 royals are not (their capture
@@ -27,18 +32,33 @@ server was down at scaffold time and the PnP PDF was never archived.
 
 ## Confirmed mechanics
 
-- **Movement: one square per turn**, only in the directions marked on the tile. **[primary]**
-  - Carp = forward only (a pawn). **[primary]**
-  - Royal (Crane/Pheasant) = any direction, one step (a king). **[primary]**
-  - Tapir, Raccoon-dog, Fox = specific marked directions — **exact diagrams not yet primary-confirmed**
-    (secondary guesses: Raccoon-dog ≈ one-step diagonal, Fox ≈ one-step orthogonal, Tapir unknown).
-    See open-questions Q1. **[needs-source]**
+- **Movement: every piece moves exactly one square per turn**, in the directions marked on the
+  tile — the rules text confirms this for all pieces ("each animal only moves one space at a
+  time"). The rook/bishop analogies are **direction-only, not sliding range.** Base movements
+  transcribed from the BGG board photo (image 1830896):
+  - **Carp** = forward only (N) — a pawn. **[primary]**
+  - **Royal (Crane/Pheasant)** = all 8 directions — a king. **[primary]**
+  - **Fox** = the 4 orthogonals (N, E, S, W) — a Wazir (Dōbutsu's Giraffe). **[primary]**
+  - **Raccoon-dog** = the 4 diagonals (NE, NW, SE, SW) — a Ferz (Dōbutsu's Elephant). **[primary]**
+  - **Tapir** = the 3 forward squares (N, NE, NW). **[primary]**
 - **Friendly-jump (the signature divergence from Dōbutsu):** "he can jump over another piece that
   belongs to the same player," landing on an empty square or capturing an opponent. An anti-
   congestion mechanic for the cramped board. **[primary]**
-- **Evolve (promotion):** on reaching the **far row**, flip the tile to its evolved side. Carp,
-  Tapir, Raccoon-dog, Fox all evolve; the royal never does. Evolved pieces move in more
-  directions — **the evolved movement diagrams are not yet primary-confirmed** (Q1). **[primary; diagrams needs-source]**
+- **Evolve (promotion): mandatory** — every non-royal piece evolves *on reaching the last row*
+  (BGG: "All pieces, save the kings, will evolve upon reaching the last row … adding more movement
+  options"); royals never evolve. Flip the tile to its evolved side. Promotion is **themed and
+  monotonic** (each evolved form *adds* directions to its base, never removes):
+  - **Carp → Koi · Tapir → Baku · Raccoon-dog → Tanuki · Fox → Kitsune** (each base animal's
+    folklore/yokai form, in that order). **[primary — BGG, "respectively"]**
+  - **Fox → Kitsune = Gold** (N, NE, NW, E, W, S), confirmed from the tile: the Wazir gains the two
+    forward diagonals. Note this is *not* the shogi rook→Dragon promotion — it's the Dōbutsu-style
+    "promote toward Gold" simplification. **[primary]**
+  - **Koi, Baku, Tanuki movements remain open** (Q1b). The monotonic rule fixes lower bounds —
+    Koi ⊇ {N}, Baku ⊇ {N,NE,NW}, Tanuki ⊇ {NE,NW,SE,SW} — and **rejects a uniform-Gold rule:**
+    Tanuki already has the back-diagonals Gold lacks, so Tanuki ≠ Gold. Koi = Gold is plausible
+    (the shogi tokin convention) but unconfirmed. **[reasoned]**
+  - Mandatory promotion also means a forward-only Carp can never strand itself immobile on the
+    last row. **[reasoned]**
 - **Drops:** capture = "invite" the piece to your farm (your hand); "call" = drop a farm piece on
   an empty square. An **evolved piece reverts to its base form when captured** (standard shogi). **[primary]**
 - **Drop restriction — WORDING CONFLICT (Q1c):** the rules text says you may not call a piece "on

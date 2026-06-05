@@ -10,13 +10,24 @@ in prose. Q1 is **gating**: nothing downstream is trustworthy until the exact ru
 Most of Shogi4's rules are recovered (see `findings.md`), but **three solve-critical specifics
 are still missing**, all locked in Oca's print-and-play PDF + per-piece tile images:
 
-- **Q1a — Starting setup.** Which animal sits on which of the 16 squares for each player. The
-  recovered board graphic is an *instructional strip*, not the setup diagram. **[blocking]**
-- **Q1b — Movement diagrams.** Exact directions for **Tapir, Raccoon-dog, Fox** (regular) and the
-  **four evolved forms**. Carp (forward) and the royal (any direction) are confirmed; the rest are
-  only secondary-guessed. A solver cannot generate moves without these. **[blocking]**
+- **Q1a — Starting setup.** ✅ **RESOLVED** (BGG board photo 1830896): back row
+  **Royal · Fox · Raccoon · Tapir** from the royal's corner, Carp one square ahead of the royal;
+  farm/hand zones flank the grid. See findings.md.
+- **Q1b — Movement diagrams.** ◐ **Mostly resolved.** All five *base* movements confirmed from
+  the BGG photo (Carp=N; Royal=king; Fox=Wazir N/E/S/W; Raccoon=Ferz; Tapir=N/NE/NW), every piece
+  one-step. **Fox→Kitsune=Gold** confirmed. **Still open: the other three evolved forms** — Koi
+  (Carp), Baku (Tapir), Tanuki (Raccoon) — which live on the tile *backs*. Constraints known
+  (monotonic adds; Tanuki ≠ Gold; Koi likely Gold). Need the PnP PDF or a clear photo of the
+  evolved faces. **[blocking for the solve]**
 - **Q1c — Drop restriction.** Rules text says "not on the opposing side of the board"; the board
   graphic says "never to the last row." Resolve which (opponent's half vs. back rank). **[blocking]**
+- **Q1d — Other drop legality.** Capturing the enemy Carp gives you two Carps of your colour, so
+  ask whether Shogi4 has any **nifu** (two-pawns-per-file), **no-immobile-drop**, or
+  **drop-mate** restrictions. Kids' rules likely omit all three — confirm, don't assume. **[blocking]**
+- **Q1e — Repetition / draw convention.** Drops let positions cycle forever, so the game value is
+  undefined without a rule, and a children's ruleset won't state one. We **declare** the
+  convention: *repeated/infinite play = draw, with no perpetual-check exception* (Shogi4 has no
+  check rule). This is our stated modeling choice, not Oca's — flag it as such in any writeup. **[our decision]**
 
 **Why blocked now:** Oca's live server is down (connection refused at scaffold time) and the PnP
 PDF (`.../releases/version 0-1-0/Four-Shogi4-0-1-0-EN.pdf`) was **never captured** by the Wayback
