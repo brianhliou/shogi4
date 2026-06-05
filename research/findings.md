@@ -128,7 +128,9 @@ game, counted as a leaf at its depth):
 | 6 | 769,014 |
 
 perft(1)=8 is hand-verified (king/fox/raccoon/tapir/carp moves, including the king **leaping its
-own carp** via friendly-jump). These are the numbers the Rust port must reproduce to the digit.
+own carp** via friendly-jump). **The Rust engine (`solver/`) reproduces perft(1..6) to the digit
+and passes a 4,000-position golden differential test** against the oracle (random playouts covering
+drops, promotions, captures, jumps) with 0 mismatches — cross-language move-gen agreement.
 **[measured — engine/validation_output.txt]**
 
 **First Shogi4 game-theoretic results**, via full retrograde over closed small subgames (validates

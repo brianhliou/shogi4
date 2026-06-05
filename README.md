@@ -48,23 +48,33 @@ machine rather than a cluster, but well past the laptop regime. (An earlier scaf
 1. **Recover the exact ruleset** from Oca's primary source — starting setup, every piece's
    movement (regular + evolved), and the drop restriction. **This gates everything.**
    *(✅ done — decompiled from the official Oca app `com.ocastudios.shogi4`; see `research/`)*
-2. **Rules engine + brute-force validator** (forward minimax on small positions; there is no
-   external oracle). *(open)*
+2. **Rules engine + validation.** Python reference (`engine/`, the oracle — a port of the
+   decompiled app), Rust engine (`solver/`), perft, and a two-solver + audit correctness gate.
+   *(✅ done — Rust perft matches the oracle to the digit + a 4,000-position golden diff passes;
+   retrograde == value-iteration + clean audit on subgames up to 1.16M positions.)*
 3. **State-space enumerator** — reproduce Tanaka's Dōbutsu upper bound to the digit, then count
    Shogi4. *(✅ done — upper bound 2.05×10¹⁴ exact; reachable ~3×10¹³; ~8 TB W/L/D. Exact reachable
-   awaits the engine. See `research/repro/`.)*
-4. **Full strong solve** (W/L/D + DTM), reusing the Dōbutsu retrograde pipeline. *(open)*
+   awaits the full solve. See `research/repro/`.)*
+4. **Full strong solve** (W/L/D + DTM) — external-memory retrograde on one high-memory/NVMe machine
+   (~2–6 core-years, ~8 TB), reusing the Dōbutsu pipeline. *(open — the first real compute spend)*
 5. **Explorer + article**, reusing the Dōbutsu formats. *(open)*
 
 ## Layout
 
 ```
+engine/                — Python reference engine (the oracle): move-gen, perft,
+  shogi4.py              retrograde + value-iteration subgame solvers, audit
+  gen_golden.py          golden position->moves generator for cross-language testing
+  golden.txt             4,000 oracle positions+moves (the Rust diff fixture)
+solver/                — Rust engine (validated to the digit); grows into the solver
+  src/lib.rs             rules engine + perft + golden verifier
+  src/main.rs            perft + golden differential-test driver
 research/
   findings.md          — verified facts ledger (numbers + sources, confidence-tagged)
-  open-questions.md    — the backlog; the exact ruleset is #1 and gating
+  open-questions.md    — the backlog (Q1 ruleset resolved; solve-correctness contract in Q5)
   prior-art.md         — the 4×4 landscape: Shogi4's recovered rules, other 4×4 attempts, why
                          there's no canonical 4×4 and none on Wikipedia
-  prior-art-evidence/  — committed primary-source artifacts (Oca board graphic, etc.)
+  prior-art-evidence/  — committed primary-source artifacts (Oca board graphic, decompiled logic)
 ```
 
 ## Primary source

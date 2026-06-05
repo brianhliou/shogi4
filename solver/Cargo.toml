@@ -1,0 +1,17 @@
+[package]
+name = "shogi4-solver"
+version = "0.1.0"
+edition = "2021"
+description = "Shogi4 rules engine and (eventually) tablebase solver. Move-gen validated to the digit against the Python oracle (engine/shogi4.py), itself a port of the decompiled official app."
+
+[lib]
+name = "shogi4"
+path = "src/lib.rs"
+
+[[bin]]
+name = "shogi4-perft"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
