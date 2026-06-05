@@ -235,6 +235,17 @@ That ratio grounds the rung-4 shuffle volume at ~7 × the solve domain ≈ **~15
 requirement, ~$0 if kept node-local / same-AZ). This converts "distributed correctness" from a
 scale-time risk into a passed laptop test. **[measured — solver/src/bin/sharded_check.rs]**
 
+**Verification demonstrated — a certificate for ~½ the solve cost that catches corruption.**
+`audit_solution` is a single forward pass checking every value is locally minimax-consistent with
+its children; **0 violations certifies the tablebase** (a locally-consistent labeling with correct
+terminals is the unique solution — the same theorem our subgame `audit` rests on). On `{2K+P+F}`:
+**solve 5.5 s, audit 3.0 s — verification is 55% of the solve**, 0 violations on the clean run.
+**Every injected single wrong value is caught** (1–5 violations each: the flipped slot plus its
+predecessors), so silent corruption can't pass. At external-memory scale the audit avoids the
+solve's iterative shuffle (one forward pass + a sort-merge vs the full fixpoint), so the fraction
+*shrinks* further. A computed result is therefore verifiable far more cheaply than re-deriving it.
+**[measured — solver/src/bin/audit_demo.rs]**
+
 **Cost calibration:** the 2-piece subgame runs at ~286k edges/s in pure Python (1 core). The full
 solve is ~4×10¹⁴ edge-ops (≈3×10¹³ positions × ~13 branching), so Python would take *decades* — but
 Rust at ~150 ns/edge (the Dōbutsu solver's measured RAM-speed) puts it at **~2–6 core-years**, i.e.

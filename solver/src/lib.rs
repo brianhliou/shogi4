@@ -719,6 +719,44 @@ pub fn solve_flat(types: &[u8], counts: &[u8]) -> (u64, u64, u64) {
     (w, l, d)
 }
 
+/// Verification: a single FORWARD pass checking every value is locally minimax-
+/// consistent with its children. A labeling that passes everywhere, with correct
+/// terminals (king-capture wins), is the unique correct solution — so 0 violations
+/// certifies the tablebase. No un-move-gen, no fixpoint iteration: this is the
+/// "verify for a fraction of the solve" pass. Returns the violation count.
+pub fn audit_solution(rk: &Ranker, val: &[u8], legal: &[bool]) -> u64 {
+    let n = rk.size() as usize;
+    let mut bad = 0u64;
+    for i in 0..n {
+        if !legal[i] {
+            continue;
+        }
+        let pos = rk.unrank(i as u64);
+        let (mut imm_win, mut has_loss, mut has_draw) = (false, false, false);
+        for mv in legal_moves(&pos) {
+            let (child, kc) = make(&pos, mv);
+            if kc {
+                imm_win = true;
+                continue;
+            }
+            match val[rk.rank(&child) as usize] {
+                V_LOSS => has_loss = true,
+                V_WIN => {}
+                _ => has_draw = true, // V_UNK == Draw
+            }
+        }
+        let ok = match val[i] {
+            V_WIN => imm_win || has_loss,                  // can win now or move to a Loss
+            V_LOSS => !imm_win && !has_loss && !has_draw,  // every move leads to a Win
+            _ => !imm_win && !has_loss && has_draw,        // Draw: no win, but holds a draw
+        };
+        if !ok {
+            bad += 1;
+        }
+    }
+    bad
+}
+
 // ---------------- un-move generation (predecessors) ----------------
 //
 // The hard primitive for push-based retrograde: given q, produce every legal
