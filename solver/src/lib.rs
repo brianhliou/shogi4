@@ -652,3 +652,69 @@ pub fn is_legal(pos: &Pos) -> bool {
     }
     true
 }
+
+/// Retrograde W/L/D over a **flat value array indexed by `rank`**, with child edges
+/// generated on the fly (`make` + `rank`) — no stored graph. This is the scalable
+/// solver mechanism in miniature (the full solve adds un-move-gen + push + external
+/// memory). Pull-based Jacobi fixpoint; fine for subgames. Returns (wins, losses, draws)
+/// over legal positions.
+pub fn solve_flat(types: &[u8], counts: &[u8]) -> (u64, u64, u64) {
+    const UNK: u8 = 0;
+    const WIN: u8 = 1;
+    const LOSS: u8 = 2;
+    let rk = Ranker::new(types, counts);
+    let n = rk.size() as usize;
+    let mut val = vec![UNK; n];
+    loop {
+        let mut changed = false;
+        for i in 0..n {
+            if val[i] != UNK {
+                continue;
+            }
+            let pos = rk.unrank(i as u64);
+            if !is_legal(&pos) {
+                continue;
+            }
+            let (mut can_win, mut found_loss, mut all_win, mut any) = (false, false, true, false);
+            for mv in legal_moves(&pos) {
+                any = true;
+                let (child, kc) = make(&pos, mv);
+                if kc {
+                    can_win = true; // capturing the king ends the game — immediate win
+                    continue;
+                }
+                match val[rk.rank(&child) as usize] {
+                    LOSS => found_loss = true,
+                    WIN => {}
+                    _ => all_win = false, // an undecided child blocks a Loss verdict
+                }
+            }
+            let nv = if can_win || found_loss {
+                WIN
+            } else if !any || all_win {
+                LOSS
+            } else {
+                UNK
+            };
+            if nv != UNK {
+                val[i] = nv;
+                changed = true;
+            }
+        }
+        if !changed {
+            break; // leftover UNKNOWN legal positions are Draws (repetition convention)
+        }
+    }
+    let (mut w, mut l, mut d) = (0u64, 0u64, 0u64);
+    for i in 0..n {
+        if !is_legal(&rk.unrank(i as u64)) {
+            continue;
+        }
+        match val[i] {
+            WIN => w += 1,
+            LOSS => l += 1,
+            _ => d += 1,
+        }
+    }
+    (w, l, d)
+}

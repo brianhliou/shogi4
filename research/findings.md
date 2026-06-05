@@ -181,6 +181,13 @@ the enumerator's set; (c) for the full game (too big to iterate) its domain **N 
 410,297,064,507,360 = 2 × the state-space enumerator's count, to the digit**. The size of this
 domain is what drove the storage correction above. **[measured — solver/src/bin/rank_check.rs]**
 
+**Flat-array solve through the rank — the scalable mechanism, validated in RAM.** `solve_flat`
+runs the retrograde over a value array indexed by `rank`, generating child edges on the fly
+(`make`+`rank`) with **no stored graph** — the in-RAM miniature of the real external-memory solver.
+It reproduces the oracle's W/L/D exactly on the subgames (`{2K}`, `{2K+P/F/R}`). What separates it
+from the full solve is now only (a) un-move generation + push (efficiency) and (b) external-memory
+backing — not correctness. **[measured — solver/src/bin/flat_check.rs]**
+
 **Cost calibration:** the 2-piece subgame runs at ~286k edges/s in pure Python (1 core). The full
 solve is ~4×10¹⁴ edge-ops (≈3×10¹³ positions × ~13 branching), so Python would take *decades* — but
 Rust at ~150 ns/edge (the Dōbutsu solver's measured RAM-speed) puts it at **~2–6 core-years**, i.e.
