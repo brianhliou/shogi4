@@ -44,7 +44,8 @@ machine can still finish.
 **Scoping.** No solver yet. The cheap, high-leverage milestones come first:
 
 1. **Recover the exact ruleset** from Oca's primary source — starting setup, every piece's
-   movement (regular + evolved), and the drop restriction. **This gates everything.** *(open)*
+   movement (regular + evolved), and the drop restriction. **This gates everything.**
+   *(✅ done — decompiled from the official Oca app `com.ocastudios.shogi4`; see `research/`)*
 2. **Rules engine + brute-force validator** (forward minimax on small positions; there is no
    external oracle). *(open)*
 3. **Port + validate the state-space enumerator** (reproduce Tanaka's Dōbutsu upper bound to the

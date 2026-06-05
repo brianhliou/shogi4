@@ -52,9 +52,13 @@
   such rule); **evolve** on reaching the far row (Carp/Tapir/Raccoon-dog/Fox evolve, royals
   never); **drops** (capture = "invite to farm"; "call" = drop), evolved pieces revert on
   capture; **win = capture the opponent's royal — NO "Try"/reach-the-far-side win.** [primary]
-- **Three rule specifics are still GAPPED** (the gate): exact starting setup; movement diagrams
-  for Tapir/Raccoon-dog/Fox + the four evolved forms; the precise drop restriction. They live in
-  the unarchived PnP PDF + piece images; Oca's live server is currently down.
+- **Ruleset fully recovered** (Q1 closed) by decompiling the official app `com.ocastudios.shogi4`
+  v1.0.1 (Kivy/pygame; `logic.py` via uncompyle6 — committed under `research/prior-art-evidence/`).
+  Base: Carp=forward; King=8; Fox=Wazir; Raccoon=Ferz; Tapir=N/NE/NW. Evolved: **Koi=Baku=Tanuki=
+  Silver, Kitsune=Gold**. Friendly-jump = leap one adjacent ally to the square two beyond. Drops:
+  empty squares only, **last-rank ban is the sole restriction** (no nifu/drop-mate). Win = **capture
+  the King only** (no checkmate, no check rule, no Try). Repetition has no in-app rule → **our**
+  declared convention: infinite play = draw.
 - **State-space (estimate): ~10⁹–10¹¹ reachable** (to pin via the ported enumerator) — larger
   than Dōbutsu (2.47×10⁸), far below Micro Shogi (~5×10¹⁴). **Expected RAM-resident / laptop-
   to-workstation solve, ~$0** — Dōbutsu regime, not Micro's cluster regime.

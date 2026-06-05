@@ -5,54 +5,29 @@ in prose. Q1 is **gating**: nothing downstream is trustworthy until the exact ru
 
 ---
 
-## Q1 — Exact ruleset (GATING) 🔴
+## Q1 — Exact ruleset ✅ RESOLVED
 
-Most of Shogi4's rules are recovered (see `findings.md`), but **three solve-critical specifics
-are still missing**, all locked in Oca's print-and-play PDF + per-piece tile images:
+**Fully recovered by decompiling the official Oca app** (`com.ocastudios.shogi4` v1.0.1), whose
+`logic.py` is the authoritative ruleset. Recovery route: APK → `assets/private.mp3` (a gzipped tar
+of the Kivy/pygame payload) → `logic.pyo` (Python 2.7 bytecode) → `uncompyle6`. The decompiled
+source is committed at `prior-art-evidence/oca-shogi4-logic-decompiled.py`; the derived rules are
+in `findings.md`. Oca's PnP PDF / dormant server are no longer on the critical path.
 
-- **Q1a — Starting setup.** ✅ **RESOLVED** (BGG board photo 1830896): back row
-  **Royal · Fox · Raccoon · Tapir** from the royal's corner, Carp one square ahead of the royal;
-  farm/hand zones flank the grid. See findings.md.
-- **Q1b — Movement diagrams.** ◐ **Mostly resolved.** All five *base* movements confirmed from
-  the BGG photo (Carp=N; Royal=king; Fox=Wazir N/E/S/W; Raccoon=Ferz; Tapir=N/NE/NW), every piece
-  one-step. **Fox→Kitsune=Gold** confirmed. **Still open: the other three evolved forms** — Koi
-  (Carp), Baku (Tapir), Tanuki (Raccoon) — which live on the tile *backs*. Constraints known
-  (monotonic adds; Tanuki ≠ Gold; Koi likely Gold). Need the PnP PDF or a clear photo of the
-  evolved faces. **[blocking for the solve]**
-- **Q1c — Drop restriction.** Rules text says "not on the opposing side of the board"; the board
-  graphic says "never to the last row." Resolve which (opponent's half vs. back rank). **[blocking]**
-- **Q1d — Other drop legality.** Capturing the enemy Carp gives you two Carps of your colour, so
-  ask whether Shogi4 has any **nifu** (two-pawns-per-file), **no-immobile-drop**, or
-  **drop-mate** restrictions. Kids' rules likely omit all three — confirm, don't assume. **[blocking]**
-- **Q1e — Repetition / draw convention.** Drops let positions cycle forever, so the game value is
-  undefined without a rule, and a children's ruleset won't state one. We **declare** the
-  convention: *repeated/infinite play = draw, with no perpetual-check exception* (Shogi4 has no
-  check rule). This is our stated modeling choice, not Oca's — flag it as such in any writeup. **[our decision]**
+- **Q1a — Starting setup.** ✅ Back row **Royal · Fox · Raccoon · Tapir** from the royal's corner,
+  Carp one square ahead of the royal (BGG photo 1830896).
+- **Q1b — All movements.** ✅ From `get_possible_squares`: Carp=N; Royal=king; Fox=Wazir;
+  Raccoon=Ferz; Tapir=N/NE/NW. Evolved: **Koi=Baku=Tanuki=Silver**, **Kitsune=Gold**. Friendly-jump
+  = leap one adjacent ally to the square two beyond, same direction (no multi-jump, no enemy-jump).
+- **Q1c — Drop restriction.** ✅ Only ban is the **opponent's last rank**; drops otherwise legal on
+  any empty square (`can_take_square`). It was "never the last row," not "opposing side."
+- **Q1d — Other drop legality.** ✅ **None** — no nifu, no drop-mate, no immobile-drop rule.
+- **Q1e — Repetition / draw convention.** The app has **no** repetition/draw rule (grep confirms),
+  so this stays **our declared convention**: *repeated/infinite play = draw, no perpetual-check
+  exception*. The only rule that is ours, not Oca's — flag it as such in any writeup. **[our decision]**
+- **Win condition.** ✅ Capture the King (and only that); no checkmate, no check restriction
+  (moving into check is legal); no Try rule. Promotion is mandatory on the last rank.
 
-**Why blocked now:** Oca's live server is down (connection refused at scaffold time) and the PnP
-PDF (`.../releases/version 0-1-0/Four-Shogi4-0-1-0-EN.pdf`) was **never captured** by the Wayback
-Machine (CDX confirms only board1.png, the two royal images, and logo were archived).
-
-**Routes already attempted and RULED OUT (don't re-walk these):**
-- ❌ Live Oca server (page + EN/US PDF) — connection refused (HTTP 000); earlier Cloudflare 52x.
-- ❌ Wayback PnP PDF — not archived under either host (`ocastudios.com` / `www.ocastudios.com`),
-  any timestamp (broad CDX prefix sweep, empty).
-- ❌ Archived web-app `ocastudios.com/four/shogi/app/` (2020-11-30) — only the landing HTML was
-  captured (links to Play Store + screenshots); no JS/JSON rule data, screenshots not archived.
-- ❌ Official Oca app `com.ocastudios.shogi4` on Google Play — listing returns empty (**delisted**).
-
-**Remaining routes (need external availability or human action):**
-1. **Retry the live Oca server later** — outage looked transient; the PDF + app live there.
-   Cheapest *if* it recovers. Worth a periodic re-poll.
-2. **Email Oca Studios** — small free-culture studio; likely to share the PnP PDF directly. (Draft
-   ready on request.)
-3. **BGG file section** for Shogi4 — community-uploaded PnP PDFs sometimes live there (BGG blocks
-   automated fetch; needs a manual/logged-in pull).
-4. **Buy/inspect the live TatApp app** is **not** a route — that's the *other*, randomized-setup
-   4×4 game, not Shogi4 (see `prior-art.md`).
-
-Until Q1 is closed, the engine is built against a **clearly-flagged provisional ruleset** and
-re-validated the moment the primary source lands.
+The ruleset is complete and unambiguous. The solve is unblocked.
 
 ---
 

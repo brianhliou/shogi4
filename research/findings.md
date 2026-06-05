@@ -41,31 +41,37 @@ server was down at scaffold time and the PnP PDF was never archived.
   - **Fox** = the 4 orthogonals (N, E, S, W) — a Wazir (Dōbutsu's Giraffe). **[primary]**
   - **Raccoon-dog** = the 4 diagonals (NE, NW, SE, SW) — a Ferz (Dōbutsu's Elephant). **[primary]**
   - **Tapir** = the 3 forward squares (N, NE, NW). **[primary]**
-- **Friendly-jump (the signature divergence from Dōbutsu):** "he can jump over another piece that
-  belongs to the same player," landing on an empty square or capturing an opponent. An anti-
-  congestion mechanic for the cramped board. **[primary]**
+- **Friendly-jump (the signature divergence from Dōbutsu) — precise semantics from app source:**
+  for any direction a piece may move, if an **allied** piece sits on the *adjacent* square, the
+  piece may instead land on the square **exactly two steps away in that same direction** (the ally
+  is leapt). One ally, one square beyond — **no multi-jumps, and you cannot jump an enemy**; the
+  landing square must be empty or hold an enemy (enforced in `can_take_square`). An anti-congestion
+  mechanic for the cramped board. **[primary — app source: the sq_F* logic in get_possible_squares]**
 - **Evolve (promotion): mandatory** — every non-royal piece evolves *on reaching the last row*
   (BGG: "All pieces, save the kings, will evolve upon reaching the last row … adding more movement
   options"); royals never evolve. Flip the tile to its evolved side. Promotion is **themed and
   monotonic** (each evolved form *adds* directions to its base, never removes):
   - **Carp → Koi · Tapir → Baku · Raccoon-dog → Tanuki · Fox → Kitsune** (each base animal's
     folklore/yokai form, in that order). **[primary — BGG, "respectively"]**
-  - **Fox → Kitsune = Gold** (N, NE, NW, E, W, S), confirmed from the tile: the Wazir gains the two
-    forward diagonals. Note this is *not* the shogi rook→Dragon promotion — it's the Dōbutsu-style
-    "promote toward Gold" simplification. **[primary]**
-  - **Koi, Baku, Tanuki movements remain open** (Q1b). The monotonic rule fixes lower bounds —
-    Koi ⊇ {N}, Baku ⊇ {N,NE,NW}, Tanuki ⊇ {NE,NW,SE,SW} — and **rejects a uniform-Gold rule:**
-    Tanuki already has the back-diagonals Gold lacks, so Tanuki ≠ Gold. Koi = Gold is plausible
-    (the shogi tokin convention) but unconfirmed. **[reasoned]**
+  - **All four evolved movements confirmed from the official app's source** (`logic.py` →
+    `get_possible_squares`): **Koi = Baku = Tanuki = Silver** (N, NE, NW, SE, SW) and
+    **Kitsune = Gold** (N, NE, NW, E, W, S). So the three minor pieces all promote to **Silver**
+    and only the Fox promotes to **Gold** — not a uniform rule, and the earlier "Koi = Gold (tokin)"
+    guess was wrong. Each is still monotonic over its base (Koi=Carp+4 diagonals; Baku=Tapir+back
+    diagonals; Tanuki=Raccoon+forward; Kitsune=Fox+forward diagonals). **[primary — app source]**
   - Mandatory promotion also means a forward-only Carp can never strand itself immobile on the
     last row. **[reasoned]**
 - **Drops:** capture = "invite" the piece to your farm (your hand); "call" = drop a farm piece on
   an empty square. An **evolved piece reverts to its base form when captured** (standard shogi). **[primary]**
-- **Drop restriction — WORDING CONFLICT (Q1c):** the rules text says you may not call a piece "on
-  the opposing side of the board"; the board graphic caption says "never to the last row." These
-  differ (opponent's half vs. just the back rank) and must be resolved from the PDF. **[primary, conflicting]**
-- **Win condition: capture ("invite") the opponent's royal.** There is **NO "Try"/reach-the-far-
-  side win** (Dōbutsu has one — Shogi4 does not). **[primary]**
+- **Drop restriction — RESOLVED from app source** (`can_take_square`): the *only* drop ban is the
+  **opponent's last rank** (row 4 for player 1, row 1 for player 2); drops are otherwise legal on
+  any empty square, your half or theirs. The earlier "opposing side" wording was wrong; it's
+  "never the last row." There is **no nifu, no drop-mate, and no immobile-drop rule** — the
+  last-rank ban is the entire restriction. **[primary — app source]**
+- **Win condition: capture the King — and *only* that** (`capture()` sets game-over iff the captured
+  piece is the King). There is **no checkmate and no check restriction**: `can_take_square` never
+  filters moves that leave your own king attacked, so **moving into check is legal** and you win by
+  *actually taking* the king (pure Dōbutsu-style). **No "Try"/reach-the-far-side win.** **[primary — app source]**
 
 ## Divergences from Dōbutsu (the engineering delta)
 
