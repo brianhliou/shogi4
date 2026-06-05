@@ -111,11 +111,18 @@ These are why the Dōbutsu solver must be re-derived, not re-pointed.
     arrangement-domain ratio** (Micro upper bound ~3.9×10¹⁵). Rung 4 is a serious NVMe machine or a
     small cluster, *not* "one small box, days." The reachable estimate (~3×10¹³) and its cause (four
     capturable types, all promoting) stand. **[measured N; compute estimate]**
-- **Compute: ~5–16 core-years** (~3×10¹³ pos × ~15 branching × ~2 passes × 150–500 ns/edge) —
-  buyable in days–weeks. Either external-memory on an ~8 TB NVMe box, or **in-RAM on a 4–6 TB
-  high-memory node** (which the LR-folded table would fit). Low-hundreds to low-thousands of $,
-  not $0. The Micro Shogi cost levers (W/L/D-only, stream-and-discard, bare-metal, symmetry) all
-  apply, scaled down ~15×. **[estimate]**
+- **Compute — CORRECTED to the rank domain: ~60–190 core-years** (~3.6×10¹⁴ legal slots × ~16
+  branching × ~2 passes × 150–500 ns/edge). A push-based retrograde must move-gen *every* slot once
+  just to count children (~6×10¹⁵ edge-ops, ~30–90 cy) before any propagation, so reachable-only
+  compute (~3×10¹³) is not achievable. The earlier "~5–16 core-years" was reachable-based and is
+  superseded.
+- **Cost — CORRECTED: ~$5–15k bare-metal (~$15–50k cloud), ~50 TB NVMe, weeks–months.** A serious
+  NVMe machine or a small cluster — *not* "one small box, days." This is **Micro-Shogi-cost-class**;
+  Shogi4 stays the cheaper rung (~19× smaller arrangement domain than Micro), and since Micro's own
+  ~$10–15k figure is likewise reachable-based (optimistic), Micro's true dense-rank cost is
+  plausibly $50–200k+ — which is exactly why solving Shogi4 first de-risks it. Levers (tighter rank
+  baking in invariants, W/L/D-only, LR-fold, stream-and-discard) shave factors, not orders of
+  magnitude. **[estimate]**
 - **Friendly-jump inflates the average branching factor** (more legal moves per position) → more
   edge-operations in retrograde analysis → more compute — but it does **not** change the position
   count. State-space size is set by arrangements; jump only adds edges. **[reasoned]**
