@@ -18,9 +18,10 @@
 
 - **Never solved.** No academic treatment, no published value, no oracle. The strong solution
   is a genuinely new result, and Shogi4 is **public domain** — free to solve, fork, publish.
-- **A real step up from Dōbutsu, not a cluster job.** Bigger board (16 vs 12 squares), one more
-  piece type per side, and a **mechanically different ruleset**. Expected to stay RAM-resident
-  / single-machine (Dōbutsu regime), *not* the external-memory monster Micro Shogi is.
+- **A genuine external-memory solve — the scaled-down Micro Shogi.** Measured ~3×10¹³ reachable
+  (~8 TB W/L/D), ~15–20× smaller than Micro Shogi but the *same* external-memory regime, not the
+  laptop Dōbutsu regime. This makes it the ideal proving ground for the Micro Shogi pipeline (see
+  `../micro-shogi`): same architecture, calibratable per-edge cost, far cheaper to run.
 - **The challenges are exactly:** (1) recovering the exact ruleset from a primary source whose
   PnP PDF is currently unreachable; (2) a different move model — notably the **friendly-jump**
   rule Dōbutsu lacks; (3) **no oracle** for correctness.
@@ -59,9 +60,12 @@
   empty squares only, **last-rank ban is the sole restriction** (no nifu/drop-mate). Win = **capture
   the King only** (no checkmate, no check rule, no Try). Repetition has no in-app rule → **our**
   declared convention: infinite play = draw.
-- **State-space (estimate): ~10⁹–10¹¹ reachable** (to pin via the ported enumerator) — larger
-  than Dōbutsu (2.47×10⁸), far below Micro Shogi (~5×10¹⁴). **Expected RAM-resident / laptop-
-  to-workstation solve, ~$0** — Dōbutsu regime, not Micro's cluster regime.
+- **State-space (measured): upper bound 205,148,532,253,680 (≈2.05×10¹⁴), EXACT** (enumerator
+  validated against Tanaka's Dōbutsu number). Reachable ~3×10¹³ (Dōbutsu ratio). **W/L/D table
+  ~8 TB → external-memory regime, ~15–20× smaller than Micro Shogi, NOT the laptop/Dōbutsu regime
+  an earlier scaffolding guess (~10⁹–10¹¹, RAM-resident) claimed — that guess was wrong by 3–4
+  orders of magnitude.** Cause: 4 capturable types, all promoting (4 states each). See
+  `research/repro/`.
 - **Friendly-jump inflates branching** (more legal moves/position) → more edge-operations →
   more compute, but does **not** change the state count.
 

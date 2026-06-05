@@ -33,10 +33,11 @@ The ruleset is complete and unambiguous. The solve is unblocked.
 
 ## Q2 — Exact reachable count
 
-Port the validated enumerator from `../micro-shogi/research/repro/`, **reproduce Tanaka's Dōbutsu
-upper bound (1,567,925,964) to the digit**, then count Shogi4's arrangements and reachable
-positions. Pins the ~10⁹–10¹¹ estimate and the RAM footprint (→ workstation vs. needs-big-RAM).
-Depends on Q1b (promotion/movement affect which arrangements are legal/reachable).
+◐ **Upper bound DONE** (`repro/`): all-arrangements **205,148,532,253,680 (≈2.05×10¹⁴), exact**,
+enumerator validated against Tanaka's Dōbutsu number + breakdown. Reachable **bracketed ~3×10¹³**
+(Dōbutsu ratio). **Still open: the EXACT reachable count**, which needs the rules engine + a forward
+BFS from the start position (it falls out of the solve). The headline consequence is already clear:
+~8 TB W/L/D → external-memory regime (see findings.md "Solve regime — CORRECTED").
 
 ## Q3 — The game value
 

@@ -9,11 +9,13 @@ This is the third entry in a small-shogi solving trilogy:
 | Repo | Game | Board | State-space (reachable) | Solve regime |
 |---|---|---|---|---|
 | [`dobutsu-shogi`](../dobutsu-shogi) | Dōbutsu Shōgi | 3×4 (12 sq) | 246,803,167 *(measured)* | laptop, ~75 min |
-| **`shogi4`** *(this repo)* | **Shogi4** | **4×4 (16 sq)** | **~10⁹–10¹¹ *(estimate)*** | **workstation, RAM-resident** |
+| **`shogi4`** *(this repo)* | **Shogi4** | **4×4 (16 sq)** | **~3×10¹³ *(upper 2.05×10¹⁴ exact)*** | **external-memory, ~8 TB** |
 | [`micro-shogi`](../micro-shogi) | Micro Shogi | 4×5 (20 sq) | ~5×10¹⁴ *(bracketed)* | ~16-node cluster, ~$10–15k |
 
-Shogi4 sits one rung above Dōbutsu and well below Micro Shogi — a real step up that a single
-machine can still finish.
+Shogi4 sits between them — and the enumerator shows it's a genuine **external-memory** solve
+(~8 TB W/L/D), only ~15–20× smaller than Micro Shogi: finishable on one high-memory or NVMe
+machine rather than a cluster, but well past the laptop regime. (An earlier scaffolding guess of
+"~10⁹–10¹¹, RAM-resident" was wrong by 3–4 orders of magnitude — the enumerator corrected it.)
 
 ## Why Shogi4 is worth solving
 
@@ -48,8 +50,9 @@ machine can still finish.
    *(✅ done — decompiled from the official Oca app `com.ocastudios.shogi4`; see `research/`)*
 2. **Rules engine + brute-force validator** (forward minimax on small positions; there is no
    external oracle). *(open)*
-3. **Port + validate the state-space enumerator** (reproduce Tanaka's Dōbutsu upper bound to the
-   digit, then count Shogi4) to pin the reachable count and the RAM footprint. *(open)*
+3. **State-space enumerator** — reproduce Tanaka's Dōbutsu upper bound to the digit, then count
+   Shogi4. *(✅ done — upper bound 2.05×10¹⁴ exact; reachable ~3×10¹³; ~8 TB W/L/D. Exact reachable
+   awaits the engine. See `research/repro/`.)*
 4. **Full strong solve** (W/L/D + DTM), reusing the Dōbutsu retrograde pipeline. *(open)*
 5. **Explorer + article**, reusing the Dōbutsu formats. *(open)*
 

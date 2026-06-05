@@ -88,14 +88,24 @@ These are why the Dōbutsu solver must be re-derived, not re-pointed.
 
 ## State-space & solve regime
 
-- **Reachable positions: ~10⁹–10¹¹ (estimate, to be pinned).** Reasoning: Shogi4 = Dōbutsu's
-  structure (one of each type per side, drops, flip-promotion) plus **+1 piece type/side and +4
-  squares**; Dōbutsu measures 2.47×10⁸ reachable, so 1–3 orders of magnitude up is expected. Pin
-  it by porting the validated enumerator from `../micro-shogi/research/repro/` and counting Shogi4. **[estimate]**
-- **Solve regime: RAM-resident, single machine, ~$0** — the Dōbutsu regime, *not* Micro Shogi's
-  external-memory/cluster regime. A 2-bit W/L/D table is ~0.25–25 GB across the bracket (fits a
-  workstation); only the high end (~10¹²) would push toward 128–256 GB RAM or light external
-  memory. The enumerator resolves which. **[estimate]**
+- **All-arrangements upper bound: 205,148,532,253,680 (≈ 2.05×10¹⁴) — EXACT.** Computed by
+  `repro/statespace_upperbound.py`, which reproduces Dōbutsu's published 1,567,925,964 **and its
+  full by-pieces-in-hand breakdown to the digit** as its correctness gate. **[measured — repro/upper_bound.txt]**
+- **Reachable positions: ~3×10¹³** (bracket ~1.6–3.2×10¹³), via the Dōbutsu-calibrated
+  reachable/upper ratio (0.157; Dōbutsu is the closest one-step animal drop-shogi analog). Exact
+  count needs the rules engine + forward search. **[estimate, bracketed]**
+- **Solve regime — CORRECTED: this is an external-memory solve, not a laptop one.** A 2-bit W/L/D
+  table over the reachable set is **~8 TB** (~4 TB after the ~2× LR fold) — it does **not** fit in
+  RAM. Shogi4 lives in **Micro Shogi's external-memory regime, just ~15–20× smaller** (Micro
+  reachable ~5×10¹⁴). The earlier scaffolding guess ("~10⁹–10¹¹, RAM-resident, Dōbutsu regime,
+  ~$0") was **wrong by 3–4 orders of magnitude**: Shogi4 has **four** capturable types and **all
+  promote** (4 owner×face states each), against Dōbutsu's 8 pieces with only the chick promoting —
+  that multiplies out far faster than "+1 type, +4 squares" suggested. **[measured]**
+- **Compute: ~5–16 core-years** (~3×10¹³ pos × ~15 branching × ~2 passes × 150–500 ns/edge) —
+  buyable in days–weeks. Either external-memory on an ~8 TB NVMe box, or **in-RAM on a 4–6 TB
+  high-memory node** (which the LR-folded table would fit). Low-hundreds to low-thousands of $,
+  not $0. The Micro Shogi cost levers (W/L/D-only, stream-and-discard, bare-metal, symmetry) all
+  apply, scaled down ~15×. **[estimate]**
 - **Friendly-jump inflates the average branching factor** (more legal moves per position) → more
   edge-operations in retrograde analysis → more compute — but it does **not** change the position
   count. State-space size is set by arrangements; jump only adds edges. **[reasoned]**

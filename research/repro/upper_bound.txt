@@ -1,0 +1,36 @@
+=== validation vs Tanaka 2009 (Dobutsu 3x4) ===
+computed upper bound  1,567,925,964
+published (Tanaka)    1,567,925,964
+total match: True   breakdown match: True
+MODEL VALIDATED.
+
+=== Shogi4 (4x4) : 16 squares, 4 capturable types (all promote) ===
+all-arrangements upper bound (EXACT) = 205,148,532,253,680
+by pieces-in-hand:
+  0 in hand: 119,027,426,918,400
+  1 in hand: 68,015,672,524,800
+  2 in hand: 15,941,173,248,000
+  3 in hand: 2,007,407,001,600
+  4 in hand: 149,817,507,840
+  5 in hand: 6,843,432,960
+  6 in hand: 188,697,600
+  7 in hand: 2,903,040
+  8 in hand: 19,440
+
+=== reachable + storage projection ===
+upper bound (exact)              205,148,532,253,680   (~2.051e+14)
+reachable bracket    ~1.580e+13 .. 3.229e+13
+reachable (Dobutsu ratio 0.157, closest analog)  ~3.229e+13
+  -> ~130841x larger than Dobutsu's 2.47e8 reachable
+canonical (Dobutsu fold 0.867)                    ~2.800e+13
+  note: Shogi4's rules are left-right symmetric, so a full LR fold
+  (~2x) is available; Dobutsu's measured fold was milder (0.867).
+
+storage for a complete tablebase over the reachable set:
+  W/L/D (2-bit)        8072.97 GB
+  DTM (1-byte)         32291.90 GB
+  DTM+slack (2-byte)   64583.80 GB
+
+regime: RAM-resident on a single workstation (Dobutsu regime), not a
+cluster. The exact reachable count comes from the rules engine + forward
+search (next milestone); this bound + ratio just sizes the solve.
