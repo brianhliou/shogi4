@@ -1,0 +1,76 @@
+# shogi4
+
+> Research project: scope and compute the **first complete strong solution** of **Shogi4** —
+> Oca Studios' public-domain 4×4 animal drop-shogi. Treat it like science: every number carries
+> its source, estimates are bracketed, and the exact ruleset is nailed before anything is solved.
+
+This is the third entry in a small-shogi solving trilogy:
+
+| Repo | Game | Board | State-space (reachable) | Solve regime |
+|---|---|---|---|---|
+| [`dobutsu-shogi`](../dobutsu-shogi) | Dōbutsu Shōgi | 3×4 (12 sq) | 246,803,167 *(measured)* | laptop, ~75 min |
+| **`shogi4`** *(this repo)* | **Shogi4** | **4×4 (16 sq)** | **~10⁹–10¹¹ *(estimate)*** | **workstation, RAM-resident** |
+| [`micro-shogi`](../micro-shogi) | Micro Shogi | 4×5 (20 sq) | ~5×10¹⁴ *(bracketed)* | ~16-node cluster, ~$10–15k |
+
+Shogi4 sits one rung above Dōbutsu and well below Micro Shogi — a real step up that a single
+machine can still finish.
+
+## Why Shogi4 is worth solving
+
+- **It has never been solved.** No academic paper, no published game value, no oracle. The
+  strong solution — is it a first- or second-player win, or a draw, and in how many plies — is
+  a genuinely new result. Nobody knows the answer yet.
+- **It's public domain.** Oca Studios released the whole "Four" series under public domain, so
+  we're free to solve it, fork it, and publish the result, crediting Oca.
+- **It's a different game, not "wider Dōbutsu."** Shogi4 has a **friendly-jump** rule (pieces
+  leap over their own pieces — Dōbutsu has nothing like it), promotion for four of five piece
+  types, a drop restriction, and **no "Try"/king-march win** (Dōbutsu has one). The move model
+  is meaningfully different, which is most of the engineering.
+
+## The challenge (what makes this non-trivial)
+
+1. **Recovering the exact ruleset from the primary source.** Solving the wrong rules is
+   worthless. Oca's print-and-play PDF and per-piece movement diagrams are the ground truth —
+   and at scaffold time the live server is down and the PDF was never archived. Three specifics
+   are still open (see [`research/open-questions.md`](research/open-questions.md)).
+2. **A bigger board with a different move model.** 16 squares, one extra piece type per side,
+   friendly-jump move generation — the Dōbutsu solver has to be re-derived, not just re-pointed.
+3. **No oracle.** Unlike Dōbutsu (checkable against Tanaka and clausecker), correctness here has
+   to be *manufactured*: brute-force forward minimax on small positions, two independent
+   implementations, and full-table consistency audits.
+
+## Status
+
+**Scoping.** No solver yet. The cheap, high-leverage milestones come first:
+
+1. **Recover the exact ruleset** from Oca's primary source — starting setup, every piece's
+   movement (regular + evolved), and the drop restriction. **This gates everything.** *(open)*
+2. **Rules engine + brute-force validator** (forward minimax on small positions; there is no
+   external oracle). *(open)*
+3. **Port + validate the state-space enumerator** (reproduce Tanaka's Dōbutsu upper bound to the
+   digit, then count Shogi4) to pin the reachable count and the RAM footprint. *(open)*
+4. **Full strong solve** (W/L/D + DTM), reusing the Dōbutsu retrograde pipeline. *(open)*
+5. **Explorer + article**, reusing the Dōbutsu formats. *(open)*
+
+## Layout
+
+```
+research/
+  findings.md          — verified facts ledger (numbers + sources, confidence-tagged)
+  open-questions.md    — the backlog; the exact ruleset is #1 and gating
+  prior-art.md         — the 4×4 landscape: Shogi4's recovered rules, other 4×4 attempts, why
+                         there's no canonical 4×4 and none on Wikipedia
+  prior-art-evidence/  — committed primary-source artifacts (Oca board graphic, etc.)
+```
+
+## Primary source
+
+Shogi4 — Oca Studios, "Four" series (public domain) · <https://ocastudios.com/four/shogi/>
+· BGG <https://boardgamegeek.com/boardgame/146291/shogi4>
+
+---
+
+Built by Brian Liou with Claude (Anthropic) — sibling to `dobutsu-shogi` and `micro-shogi`.
+
+> Note: this README is a working scoping doc. The polished public hero gets drafted via the
+> `draft-voice` skill when the project nears distribution.

@@ -1,0 +1,25 @@
+# Rust
+/target/
+**/target/
+**/*.rs.bk
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Solver / tablebase output (can be large)
+*.tb
+*.egtb
+*.bin
+/solver/out/
+/data/tablebase/
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
