@@ -206,6 +206,22 @@ external-memory algorithm now runs and is validated in RAM. **Only the external-
 was also optimized (direct single-move legality check instead of full move-gen). **[measured —
 solver/src/bin/lr_check.rs]**
 
+**Calibration ladder — the push solver scaled to 51.5M positions in RAM.** Largest in-RAM solve;
+all match the oracle's logic (validated at ≤1.16M; the 51.5M is a new result):
+
+| subgame | legal positions | time | ns/edge | W / L / D |
+|---|---|---|---|---|
+| `{2K+P+F}` | 1,164,704 | 5.5 s | ~396 | 74.5 / 17.8 / 7.7 % |
+| `{2K+P+F+R}` | **51,461,568** | 391 s | **~633** | 80.3 / 18.9 / 0.8 % |
+
+These are reduced games (fewer pieces), not the full Shogi4 — for validation + calibration, not the
+headline value. **The key signal: `ns/edge` *rises* with working-set size** (396 → 633 as the value
+arrays grow past cache), which is exactly the cost model's external-memory risk showing up
+empirically. At PB scale on NVMe it climbs further, so **keeping access sequential is the dominant
+rung-4 cost driver** — and it places the compute estimate toward the realistic-high end of
+~60–190 core-years, partly offset by the exact-2× LR fold. `{2K + one of each type}` (3.5B) is
+laptop-infeasible — the in-RAM ceiling is ~50–75M. **[measured — solver/src/bin/scale.rs]**
+
 **Cost calibration:** the 2-piece subgame runs at ~286k edges/s in pure Python (1 core). The full
 solve is ~4×10¹⁴ edge-ops (≈3×10¹³ positions × ~13 branching), so Python would take *decades* — but
 Rust at ~150 ns/edge (the Dōbutsu solver's measured RAM-speed) puts it at **~2–6 core-years**, i.e.
