@@ -1,0 +1,14 @@
+=== perft from the start position ===
+legal moves at root (perft 1): 8
+  perft(1) = 8
+  perft(2) = 64
+  perft(3) = 626
+  perft(4) = 6,304
+  perft(5) = 68,723
+  perft(6) = 769,014
+
+=== tiny subgame retrograde solves (pipeline validation) ===
+  {2 kings}: 480 positions -> W 168 (35.0%)  L 0 (0.0%)  D 312 (65.0%)
+  {2 kings + carp}: 24,480 positions -> W 18,592 (75.9%)  L 5,712 (23.3%)  D 176 (0.7%)
+  {2 kings + fox}: 24,480 positions -> W 18,772 (76.7%)  L 5,708 (23.3%)  D 0 (0.0%)
+  {2 kings + raccoon}: 24,480 positions -> W 18,652 (76.2%)  L 5,828 (23.8%)  D 0 (0.0%)

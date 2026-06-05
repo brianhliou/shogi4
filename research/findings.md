@@ -112,6 +112,39 @@ These are why the Dōbutsu solver must be re-derived, not re-pointed.
 - **Symmetry:** like Dōbutsu, only **left–right mirror** folding applies (shogi pieces have a
   forward direction, so the square board grants no extra rotational symmetry). ~2× fold. **[reasoned]**
 
+## Engine & perft (reference implementation)
+
+`engine/shogi4.py` is a faithful Python port of the decompiled app's rules — the **oracle** for
+differential-testing the Rust engine. **perft from the start position** (a king-capture ends the
+game, counted as a leaf at its depth):
+
+| depth | perft |
+|---|---|
+| 1 | 8 |
+| 2 | 64 |
+| 3 | 626 |
+| 4 | 6,304 |
+| 5 | 68,723 |
+| 6 | 769,014 |
+
+perft(1)=8 is hand-verified (king/fox/raccoon/tapir/carp moves, including the king **leaping its
+own carp** via friendly-jump). These are the numbers the Rust port must reproduce to the digit.
+**[measured — engine/validation_output.txt]**
+
+**First Shogi4 game-theoretic results**, via full retrograde over closed small subgames (validates
+the W/L/D pipeline incl. drops, promotion, captures, repetition=draw):
+
+| subgame | positions | Win | Loss | Draw |
+|---|---|---|---|---|
+| 2 kings | 480 | 35.0% | 0% | 65.0% |
+| 2 kings + carp | 24,480 | 75.9% | 23.3% | 0.7% |
+| 2 kings + fox | 24,480 | 76.7% | 23.3% | 0% |
+| 2 kings + raccoon | 24,480 | 76.2% | 23.8% | 0% |
+
+These are artificial reduced games for pipeline validation, **not** sub-parts of full Shogi4 (drops
+conserve material, so the real game doesn't decompose into them). The `{2 kings}` 0-loss result is a
+correctness sanity check: with only kings you can always avoid a forced capture. **[measured]**
+
 ## Sources
 
 - Oca Studios Shogi4 rules page (primary; via Wayback 2024-09-26): <https://ocastudios.com/four/shogi/>
