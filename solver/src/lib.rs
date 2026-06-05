@@ -728,11 +728,33 @@ pub fn solve_flat(types: &[u8], counts: &[u8]) -> (u64, u64, u64) {
 // not on hand-written reverse logic. Material is conserved, so all predecessors
 // share q's inventory.
 
-fn add_if_pred(p: Pos, mv: Move, q: &Pos, set: &mut HashSet<Pos>) {
-    if !is_legal(&p) {
-        return;
+/// Is this specific move legal in `p`? (Direct check — no full move-gen.)
+fn move_is_legal(p: &Pos, mv: Move) -> bool {
+    let me = p.stm;
+    match mv {
+        Move::Board { src, dst } => {
+            let sc = p.board[src];
+            if sc == 0 || c_owner(sc) != me {
+                return false;
+            }
+            let dc = p.board[dst];
+            if dc != 0 && c_owner(dc) == me {
+                return false; // can't land on own piece
+            }
+            let mut buf = Vec::with_capacity(12);
+            dests(&p.board, src, me, c_animal(sc), &mut buf);
+            buf.contains(&dst)
+        }
+        Move::Drop { base, dst } => {
+            p.hands[me as usize][base_slot(base)] > 0
+                && p.board[dst] == 0
+                && row(dst) != if me == P1 { 4 } else { 1 }
+        }
     }
-    if !legal_moves(&p).contains(&mv) {
+}
+
+fn add_if_pred(p: Pos, mv: Move, q: &Pos, set: &mut HashSet<Pos>) {
+    if !is_legal(&p) || !move_is_legal(&p, mv) {
         return;
     }
     let (child, kc) = make(&p, mv);
@@ -812,16 +834,30 @@ pub fn predecessors(q: &Pos) -> Vec<Pos> {
     set.into_iter().collect()
 }
 
-/// Push-based retrograde (counter-BFS) over the rank-indexed flat array, using
-/// `predecessors` for backward propagation — no stored graph, no pull rescan.
-/// This is the algorithm the full external-memory solve runs. Returns (W, L, D).
-pub fn solve_push(types: &[u8], counts: &[u8]) -> (u64, u64, u64) {
-    const UNK: u8 = 0;
-    const WIN: u8 = 1;
-    const LOSS: u8 = 2;
+// Value codes in the flat array.
+pub const V_UNK: u8 = 0; // (legal & undecided after fixpoint = Draw; illegal slots also 0)
+pub const V_WIN: u8 = 1;
+pub const V_LOSS: u8 = 2;
+
+/// Left–right mirror of a position (columns c ↔ 5−c). The rules are LR-symmetric,
+/// so `value(pos) == value(mirror(pos))` — the basis of the ~2× symmetry fold.
+pub fn mirror(pos: &Pos) -> Pos {
+    let mut board = [0u8; 16];
+    for s in 0..16 {
+        if pos.board[s] != 0 {
+            board[idx(5 - col(s), row(s))] = pos.board[s];
+        }
+    }
+    Pos { board, hands: pos.hands, stm: pos.stm }
+}
+
+/// Push-based retrograde over the rank-indexed flat array (the algorithm the full
+/// external-memory solve runs). Returns the ranker, the value array (`V_*` per slot),
+/// and a legality mask.
+pub fn solve_push_array(types: &[u8], counts: &[u8]) -> (Ranker, Vec<u8>, Vec<bool>) {
     let rk = Ranker::new(types, counts);
     let n = rk.size() as usize;
-    let mut val = vec![UNK; n];
+    let mut val = vec![V_UNK; n];
     let mut cnt = vec![0u16; n]; // undecided non-king-capture children
     let mut legal = vec![false; n];
     let mut q: VecDeque<u64> = VecDeque::new();
@@ -844,44 +880,49 @@ pub fn solve_push(types: &[u8], counts: &[u8]) -> (u64, u64, u64) {
         }
         cnt[i] = deg;
         if imm_win {
-            val[i] = WIN;
+            val[i] = V_WIN;
             q.push_back(i as u64);
         } else if deg == 0 {
-            val[i] = LOSS;
+            val[i] = V_LOSS;
             q.push_back(i as u64);
         }
     }
 
-    // propagate backward
+    // propagate backward via un-move generation
     while let Some(qi) = q.pop_front() {
         let qpos = rk.unrank(qi);
         let qv = val[qi as usize];
         for p in predecessors(&qpos) {
             let pi = rk.rank(&p) as usize;
-            if val[pi] != UNK {
+            if val[pi] != V_UNK {
                 continue;
             }
-            if qv == LOSS {
-                val[pi] = WIN; // a move to a Loss => Win
+            if qv == V_LOSS {
+                val[pi] = V_WIN; // a move to a Loss => Win
                 q.push_back(pi as u64);
             } else {
                 cnt[pi] = cnt[pi].saturating_sub(1);
                 if cnt[pi] == 0 {
-                    val[pi] = LOSS; // all children Win => Loss
+                    val[pi] = V_LOSS; // all children Win => Loss
                     q.push_back(pi as u64);
                 }
             }
         }
     }
+    (rk, val, legal)
+}
 
+/// W/L/D counts over legal positions.
+pub fn solve_push(types: &[u8], counts: &[u8]) -> (u64, u64, u64) {
+    let (_rk, val, legal) = solve_push_array(types, counts);
     let (mut w, mut l, mut d) = (0u64, 0u64, 0u64);
-    for i in 0..n {
+    for i in 0..val.len() {
         if !legal[i] {
             continue;
         }
         match val[i] {
-            WIN => w += 1,
-            LOSS => l += 1,
+            V_WIN => w += 1,
+            V_LOSS => l += 1,
             _ => d += 1,
         }
     }

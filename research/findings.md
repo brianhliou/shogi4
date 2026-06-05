@@ -199,6 +199,13 @@ external-memory algorithm now runs and is validated in RAM. **Only the external-
 (sharding the flat array onto NVMe) and the rung-4 spend remain — not correctness.**
 **[measured — solver/src/bin/push_check.rs]**
 
+**LR-symmetry fold — validated, a clean exact 2×.** `mirror` (columns c↔5−c) + the invariant
+`value(pos) == value(mirror(pos))` checked across the solved subgames: **0 mismatches**, and on the
+4-wide board **no position is its own mirror**, so the fold factor is exactly **0.500** — a genuine
+2× cut to rung-4 storage *and* compute (not the ~1.15× Dōbutsu's solver achieved). `predecessors`
+was also optimized (direct single-move legality check instead of full move-gen). **[measured —
+solver/src/bin/lr_check.rs]**
+
 **Cost calibration:** the 2-piece subgame runs at ~286k edges/s in pure Python (1 core). The full
 solve is ~4×10¹⁴ edge-ops (≈3×10¹³ positions × ~13 branching), so Python would take *decades* — but
 Rust at ~150 ns/edge (the Dōbutsu solver's measured RAM-speed) puts it at **~2–6 core-years**, i.e.
