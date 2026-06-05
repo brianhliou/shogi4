@@ -22,13 +22,23 @@ are still missing**, all locked in Oca's print-and-play PDF + per-piece tile ima
 PDF (`.../releases/version 0-1-0/Four-Shogi4-0-1-0-EN.pdf`) was **never captured** by the Wayback
 Machine (CDX confirms only board1.png, the two royal images, and logo were archived).
 
-**Routes to close it (in rough priority):**
-1. **Retry the live Oca server** — the outage looked transient (Cloudflare 52x earlier, then
-   connection refused). The PDF + app live there. Cheapest if it recovers.
-2. **BGG file section** for Shogi4 — community-uploaded PnP PDFs often live there.
-3. **Extract from the archived web-app** — `ocastudios.com/four/shogi/app/` *was* archived
-   (2020-11-30). Its JS/assets encode the authoritative setup + movement vectors; parse them out.
-4. **Email Oca Studios** — small free-culture studio; likely to share the PDF directly.
+**Routes already attempted and RULED OUT (don't re-walk these):**
+- ❌ Live Oca server (page + EN/US PDF) — connection refused (HTTP 000); earlier Cloudflare 52x.
+- ❌ Wayback PnP PDF — not archived under either host (`ocastudios.com` / `www.ocastudios.com`),
+  any timestamp (broad CDX prefix sweep, empty).
+- ❌ Archived web-app `ocastudios.com/four/shogi/app/` (2020-11-30) — only the landing HTML was
+  captured (links to Play Store + screenshots); no JS/JSON rule data, screenshots not archived.
+- ❌ Official Oca app `com.ocastudios.shogi4` on Google Play — listing returns empty (**delisted**).
+
+**Remaining routes (need external availability or human action):**
+1. **Retry the live Oca server later** — outage looked transient; the PDF + app live there.
+   Cheapest *if* it recovers. Worth a periodic re-poll.
+2. **Email Oca Studios** — small free-culture studio; likely to share the PnP PDF directly. (Draft
+   ready on request.)
+3. **BGG file section** for Shogi4 — community-uploaded PnP PDFs sometimes live there (BGG blocks
+   automated fetch; needs a manual/logged-in pull).
+4. **Buy/inspect the live TatApp app** is **not** a route — that's the *other*, randomized-setup
+   4×4 game, not Shogi4 (see `prior-art.md`).
 
 Until Q1 is closed, the engine is built against a **clearly-flagged provisional ruleset** and
 re-validated the moment the primary source lands.
