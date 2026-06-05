@@ -395,3 +395,260 @@ pub fn solve_subgame(extra: &[u8]) -> (u64, u64, u64) {
     }
     (w, l, d)
 }
+
+// ---------------- dense position ranking (the scaling bridge) ----------------
+//
+// A bijection `rank: position <-> [0, N)` so the value of every position lives at
+// a fixed slot in a flat array (no hashing), which is what lets the retrograde
+// stream off disk at full scale. Built per inventory (counts of each capturable
+// type). Symbol layout for the 16-cell board multiset:
+//   0 = empty, 1 = P1 king, 2 = P2 king, then 3 + ti*4 + owner*2 + face per type.
+// The index = stm * S + (composition_base + multiset_permutation_rank), where a
+// "composition" fixes, per type, how its copies split across the 4 board (owner,
+// face) states and the 2 hands. Last-rank exclusion is NOT applied here (those
+// few illegal positions are harmless holes), so N counts arrangements x 2 (turn).
+
+fn binom(n: u64, k: u64) -> u64 {
+    if k > n {
+        return 0;
+    }
+    let k = k.min(n - k);
+    let mut r: u128 = 1;
+    for i in 0..k {
+        r = r * (n - i) as u128 / (i + 1) as u128;
+    }
+    r as u64
+}
+
+/// total! / prod(counts!), where sum(counts) == total
+fn multinom(counts: &[u32], total: u32) -> u64 {
+    let mut r: u64 = 1;
+    let mut rem = total as u64;
+    for &c in counts {
+        if c == 0 {
+            continue;
+        }
+        r *= binom(rem, c as u64);
+        rem -= c as u64;
+    }
+    r
+}
+
+fn rank_within(cells: &[u8; 16], init: &[u32]) -> u64 {
+    let mut cnt = init.to_vec();
+    let mut rem = 16u32;
+    let mut r = 0u64;
+    for p in 0..16 {
+        let c = cells[p] as usize;
+        for s in 0..c {
+            if cnt[s] > 0 {
+                cnt[s] -= 1;
+                r += multinom(&cnt, rem - 1);
+                cnt[s] += 1;
+            }
+        }
+        cnt[c] -= 1;
+        rem -= 1;
+    }
+    r
+}
+
+fn unrank_within(mut r: u64, init: &[u32]) -> [u8; 16] {
+    let mut cnt = init.to_vec();
+    let mut rem = 16u32;
+    let mut cells = [0u8; 16];
+    for p in 0..16 {
+        for s in 0..cnt.len() {
+            if cnt[s] > 0 {
+                cnt[s] -= 1;
+                let t = multinom(&cnt, rem - 1);
+                if r < t {
+                    cells[p] = s as u8;
+                    rem -= 1;
+                    break;
+                }
+                r -= t;
+                cnt[s] += 1;
+            }
+        }
+    }
+    cells
+}
+
+fn enum_type_comps(c: u8) -> Vec<[u8; 6]> {
+    // all (b00,b01,b10,b11,h1,h2) >= 0 summing to c  (4 board owner/face bins + 2 hands)
+    let mut v = Vec::new();
+    for b00 in 0..=c {
+        for b01 in 0..=c - b00 {
+            for b10 in 0..=c - b00 - b01 {
+                for b11 in 0..=c - b00 - b01 - b10 {
+                    for h1 in 0..=c - b00 - b01 - b10 - b11 {
+                        let h2 = c - b00 - b01 - b10 - b11 - h1;
+                        v.push([b00, b01, b10, b11, h1, h2]);
+                    }
+                }
+            }
+        }
+    }
+    v
+}
+
+pub struct Ranker {
+    types: Vec<u8>,
+    nsym: usize,
+    type_comps: Vec<Vec<[u8; 6]>>,
+    type_idx: Vec<HashMap<[u8; 6], u32>>,
+    radix: Vec<u64>, // mixed-radix weight per type for the composition index
+    base: Vec<u64>,  // prefix sums of multinom per composition (within one stm)
+    board_counts: Vec<Vec<u32>>,
+    hands: Vec<[[u8; 4]; 2]>,
+    s_total: u64,
+}
+
+impl Ranker {
+    pub fn new(types: &[u8], counts: &[u8]) -> Ranker {
+        let nsym = 3 + 4 * types.len();
+        let type_comps: Vec<Vec<[u8; 6]>> = counts.iter().map(|&c| enum_type_comps(c)).collect();
+        let type_idx: Vec<HashMap<[u8; 6], u32>> = type_comps
+            .iter()
+            .map(|v| v.iter().enumerate().map(|(i, &t)| (t, i as u32)).collect())
+            .collect();
+        let total_comps: u64 = type_comps.iter().map(|v| v.len() as u64).product();
+        let mut radix = vec![1u64; types.len()];
+        for ti in (0..types.len()).rev() {
+            radix[ti] = if ti + 1 < types.len() {
+                radix[ti + 1] * type_comps[ti + 1].len() as u64
+            } else {
+                1
+            };
+        }
+        let (mut base, mut board_counts, mut hands) = (Vec::new(), Vec::new(), Vec::new());
+        let mut running = 0u64;
+        for ci in 0..total_comps {
+            let mut bc = vec![0u32; nsym];
+            bc[0] = 16;
+            bc[1] = 1;
+            bc[2] = 1;
+            bc[0] -= 2; // kings
+            let mut h = [[0u8; 4]; 2];
+            for ti in 0..types.len() {
+                let comp = type_comps[ti][((ci / radix[ti]) % type_comps[ti].len() as u64) as usize];
+                let slot = base_slot(types[ti]);
+                for o in 0..2 {
+                    for f in 0..2 {
+                        let b = comp[o * 2 + f] as u32;
+                        bc[3 + ti * 4 + o * 2 + f] = b;
+                        bc[0] -= b;
+                    }
+                }
+                h[0][slot] = comp[4];
+                h[1][slot] = comp[5];
+            }
+            base.push(running);
+            running += multinom(&bc, 16);
+            board_counts.push(bc);
+            hands.push(h);
+        }
+        Ranker { types: types.to_vec(), nsym, type_comps, type_idx, radix, base, board_counts, hands, s_total: running }
+    }
+
+    pub fn size(&self) -> u64 {
+        2 * self.s_total
+    }
+
+    fn cell_to_sym(&self, cell: u8) -> usize {
+        if cell == 0 {
+            return 0;
+        }
+        let (a, o) = (c_animal(cell), c_owner(cell));
+        if a == KING {
+            return if o == P1 { 1 } else { 2 };
+        }
+        for ti in 0..self.types.len() {
+            if self.types[ti] == a {
+                return 3 + ti * 4 + (o as usize) * 2;
+            }
+            if promo(self.types[ti]) == a {
+                return 3 + ti * 4 + (o as usize) * 2 + 1;
+            }
+        }
+        unreachable!()
+    }
+
+    fn sym_to_cell(&self, sym: usize) -> u8 {
+        match sym {
+            0 => 0,
+            1 => mk_cell(P1, KING),
+            2 => mk_cell(P2, KING),
+            _ => {
+                let x = sym - 3;
+                let (ti, rem) = (x / 4, x % 4);
+                let (o, f) = ((rem / 2) as u8, rem % 2);
+                let a = if f == 0 { self.types[ti] } else { promo(self.types[ti]) };
+                mk_cell(o, a)
+            }
+        }
+    }
+
+    fn comp_index(&self, pos: &Pos) -> usize {
+        let mut ci = 0u64;
+        for ti in 0..self.types.len() {
+            let slot = base_slot(self.types[ti]);
+            let mut comp = [0u8; 6];
+            comp[4] = pos.hands[0][slot];
+            comp[5] = pos.hands[1][slot];
+            for s in 0..16 {
+                let cell = pos.board[s];
+                if cell == 0 || c_animal(cell) == KING {
+                    continue;
+                }
+                let a = c_animal(cell);
+                if a == self.types[ti] {
+                    comp[(c_owner(cell) as usize) * 2] += 1;
+                } else if a == promo(self.types[ti]) {
+                    comp[(c_owner(cell) as usize) * 2 + 1] += 1;
+                }
+            }
+            ci += self.type_idx[ti][&comp] as u64 * self.radix[ti];
+        }
+        ci as usize
+    }
+
+    pub fn rank(&self, pos: &Pos) -> u64 {
+        let ci = self.comp_index(pos);
+        let mut cells = [0u8; 16];
+        for s in 0..16 {
+            cells[s] = self.cell_to_sym(pos.board[s]) as u8;
+        }
+        let within = rank_within(&cells, &self.board_counts[ci]);
+        (pos.stm as u64) * self.s_total + self.base[ci] + within
+    }
+
+    pub fn unrank(&self, i: u64) -> Pos {
+        let stm = (i / self.s_total) as u8;
+        let r = i % self.s_total;
+        let ci = self.base.partition_point(|&b| b <= r) - 1;
+        let within = r - self.base[ci];
+        let cells = unrank_within(within, &self.board_counts[ci]);
+        let mut board = [0u8; 16];
+        for s in 0..16 {
+            board[s] = self.sym_to_cell(cells[s] as usize);
+        }
+        Pos { board, hands: self.hands[ci], stm }
+    }
+}
+
+/// True unless a base (unpromoted) piece sits on its owner's promotion rank.
+pub fn is_legal(pos: &Pos) -> bool {
+    for s in 0..16 {
+        let cell = pos.board[s];
+        if cell == 0 {
+            continue;
+        }
+        let (a, o) = (c_animal(cell), c_owner(cell));
+        if matches!(a, CARP | TAPIR | RACCOON | FOX) && row(s) == if o == P1 { 4 } else { 1 } {
+            return false;
+        }
+    }
+    true
+}

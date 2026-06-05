@@ -94,13 +94,23 @@ These are why the Dōbutsu solver must be re-derived, not re-pointed.
 - **Reachable positions: ~3×10¹³** (bracket ~1.6–3.2×10¹³), via the Dōbutsu-calibrated
   reachable/upper ratio (0.157; Dōbutsu is the closest one-step animal drop-shogi analog). Exact
   count needs the rules engine + forward search. **[estimate, bracketed]**
-- **Solve regime — CORRECTED: this is an external-memory solve, not a laptop one.** A 2-bit W/L/D
-  table over the reachable set is **~8 TB** (~4 TB after the ~2× LR fold) — it does **not** fit in
-  RAM. Shogi4 lives in **Micro Shogi's external-memory regime, just ~15–20× smaller** (Micro
-  reachable ~5×10¹⁴). The earlier scaffolding guess ("~10⁹–10¹¹, RAM-resident, Dōbutsu regime,
-  ~$0") was **wrong by 3–4 orders of magnitude**: Shogi4 has **four** capturable types and **all
-  promote** (4 owner×face states each), against Dōbutsu's 8 pieces with only the chick promoting —
-  that multiplies out far faster than "+1 type, +4 squares" suggested. **[measured]**
+- **Solve regime — external-memory, sized to the dense-rank ARRANGEMENT domain (corrected twice).**
+  The scalable solver indexes positions by a dense rank (no hashing). That rank necessarily spans
+  **all legal arrangements**, not the reachable subset — you can't combinatorially rank
+  reachable-only at this scale (an MPHF over ~3×10¹³ keys is itself infeasible; that's why Dōbutsu's
+  enumerate-then-MPHF trick doesn't carry up). The **validated** ranker's domain is **N =
+  410,297,064,507,360 ≈ 4.1×10¹⁴** (= 2 × the enumerator's arrangement count, to the digit;
+  `solver/src/bin/rank_check.rs`). So the flat 2-bit W/L/D array is **~100 TB** (~50 TB after the
+  ~2× LR fold; ~5–15 TB peak-resident with stream-and-discard).
+  - **This supersedes the earlier "~8 TB" figure**, which was the *reachable-only floor* (~3×10¹³ ×
+    2 bit). The solver's real footprint follows the rank domain, ~13× larger. I conflated "reachable
+    count" with "solver index size" — building the ranker exposed the gap.
+  - Compute is dominated by the *active* (reachable + backward-reachable) subset, still being
+    pinned — plausibly ~tens of core-years.
+  - Net: **bigger than I first stated — Micro Shogi's storage class, still ~10–19× smaller by the
+    arrangement-domain ratio** (Micro upper bound ~3.9×10¹⁵). Rung 4 is a serious NVMe machine or a
+    small cluster, *not* "one small box, days." The reachable estimate (~3×10¹³) and its cause (four
+    capturable types, all promoting) stand. **[measured N; compute estimate]**
 - **Compute: ~5–16 core-years** (~3×10¹³ pos × ~15 branching × ~2 passes × 150–500 ns/edge) —
   buyable in days–weeks. Either external-memory on an ~8 TB NVMe box, or **in-RAM on a 4–6 TB
   high-memory node** (which the LR-folded table would fit). Low-hundreds to low-thousands of $,
@@ -155,6 +165,14 @@ fixture) — and a **local consistency audit finds 0 violations** (every Win has
 every Loss has all moves to Wins; every Draw has no move to a Loss and ≥1 to a Draw). Holds at
 1.16M positions, e.g. `{2K+carp+fox}` = W 867,856 / L 206,964 / D 89,884. With the move-gen
 agreement (perft + golden), the **entire Rust pipeline is now cross-validated**. **[measured]**
+
+**Dense ranking (the scaling bridge) — built & validated.** `solver/` has a `rank`/`unrank`
+bijection (position ↔ integer), the component that replaces the in-RAM HashMap with a flat array.
+Validated three ways: (a) `rank(unrank(i)) == i` over *every* `i` on the subgames (incl. the count-2
+`{2K+2P}`, which exercises the full-game piece shape); (b) the legal positions from `unrank` equal
+the enumerator's set; (c) for the full game (too big to iterate) its domain **N =
+410,297,064,507,360 = 2 × the state-space enumerator's count, to the digit**. The size of this
+domain is what drove the storage correction above. **[measured — solver/src/bin/rank_check.rs]**
 
 **Cost calibration:** the 2-piece subgame runs at ~286k edges/s in pure Python (1 core). The full
 solve is ~4×10¹⁴ edge-ops (≈3×10¹³ positions × ~13 branching), so Python would take *decades* — but

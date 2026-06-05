@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shogi4 — interactive board (rules viewer)</title>
+<meta name="description" content="Shogi4 (Oca Studios' public-domain 4×4 animal drop-shogi): play through games on a board backed by the validated rules engine. Friendly-jumps, far-rank promotion, and drops, all legal-move-checked. Not yet solved — legal moves only.">
+<style>
+  :root {
+    --ink:#1f2328; --muted:#6b7280; --accent:#d98a2b;
+    --move:#2b8a8a; --cap:#c0392b; --drop:#2e7d32;
+    --sente:#fbf5e6; --sente-line:#6f5d33; --sente-ink:#5a3d1d;
+    --gote:#373d47; --gote-line:#20252d; --gote-ink:#eef2f8;
+    --board:#f3ead2; --board-line:#9c8856; --promo:#efe0bd;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif; color:var(--ink);
+         margin:0; padding:10px 16px; line-height:1.5; display:flex; flex-direction:column;
+         gap:8px; overflow:hidden; }
+  h1 { margin:0; }
+  button, select { font:inherit; padding:4px 11px; border:1px solid #d4d4d8;
+           background:#fff; border-radius:7px; cursor:pointer; }
+  button:hover { background:#f3f3f3; }
+
+  .site-header { flex:0 0 auto; display:flex; align-items:center; gap:4px 14px; flex-wrap:wrap; }
+  .site-header h1 { font-size:1.22rem; letter-spacing:-.01em; }
+  .tagline { color:var(--muted); font-size:.86rem; }
+  .hlinks { margin-left:auto; display:flex; align-items:center; gap:16px; font-size:.86rem; white-space:nowrap; }
+  .hlinks a, .navbtn { color:var(--accent); text-decoration:none; font-weight:600; }
+  .hlinks a:hover, .navbtn:hover { text-decoration:underline; }
+  .navbtn { background:none; border:0; padding:0; font:inherit; font-size:.86rem; font-weight:600; cursor:pointer; }
+
+  /* modal */
+  .modal { position:fixed; inset:0; background:rgba(20,22,26,.5); display:flex; align-items:center;
+           justify-content:center; z-index:50; padding:20px; }
+  .modal[hidden] { display:none; }
+  .modal-card { position:relative; background:#fff; width:560px; max-width:100%; max-height:86vh; overflow-y:auto;
+                border-radius:16px; padding:26px 30px; box-shadow:0 24px 70px rgba(0,0,0,.32); line-height:1.62; }
+  .modal-card h2 { font-size:1.35rem; margin:0 6px 4px 0; }
+  .modal-card .lead { color:var(--muted); margin:0 0 16px; }
+  .modal-card h3 { font-size:1rem; margin:18px 0 6px; }
+  .modal-card p { margin:0 0 11px; color:#2c2f35; }
+  .modal-card a { color:var(--accent); font-weight:600; text-decoration:none; }
+  .modal-card a:hover { text-decoration:underline; }
+  .modal-card ul { margin:0 0 11px; padding-left:20px; }
+  .modal-card li { margin:3px 0; }
+  .modal-card .credit { color:#9aa0a6; font-size:.82rem; margin:16px 0 0; padding-top:13px; border-top:1px solid #eee; }
+  .modal-close { position:absolute; top:14px; right:16px; width:30px; height:30px; border-radius:8px; border:0;
+                 background:#f1f0ec; color:#555; font-size:1.15rem; cursor:pointer; line-height:1; }
+  .modal-close:hover { background:#e6e4dd; }
+  textarea { width:100%; font:inherit; font-family:ui-monospace,Menlo,monospace; font-size:.85rem;
+             border:1px solid #d4d4d8; border-radius:8px; padding:8px; }
+
+  /* layout */
+  .main { flex:1 1 auto; min-height:0; display:flex; gap:22px; align-items:stretch; justify-content:center; }
+  .left { flex:0 1 auto; min-width:0; min-height:0; display:flex; justify-content:center; align-items:center; }
+  .boardbox { display:flex; flex-direction:row; align-items:stretch; gap:14px; min-height:0; width:fit-content; }
+  .hands { display:flex; flex-direction:column; justify-content:space-between; gap:12px; }
+  #board { display:block; height:min(640px, calc(100vh - 120px));
+           width:min(640px, calc(100vh - 120px)); touch-action:none; }
+  #board image, #board .pc { pointer-events:none; }
+  #board.grab { cursor:grab; } #board.grab:active { cursor:grabbing; }
+
+  /* hand trays */
+  .tray { display:flex; flex-direction:column; align-items:center; gap:9px; padding:9px 11px 12px;
+          border:1.5px solid #e6e2d6; border-radius:14px; background:#f8f5ec;
+          transition:border-color .15s,box-shadow .15s; }
+  .tray.active { border-color:var(--accent); box-shadow:0 0 0 3px rgba(217,138,43,.16); }
+  .traylbl { font-size:.7rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
+             color:#9a8a62; text-align:center; margin-bottom:1px; }
+  .slot { position:relative; display:flex; }
+  .chip { display:inline-flex; cursor:grab; user-select:none; }
+  .chip.ghost { opacity:.22; cursor:default; }
+  .chip.sel svg { outline:3px solid rgba(217,138,43,.6); border-radius:13px; }
+  .chip-svg { display:block; width:clamp(44px, calc((100vh - 120px) / 6 - 40px), 88px);
+              height:clamp(44px, calc((100vh - 120px) / 6 - 40px), 88px); pointer-events:none; }
+  .cnt { position:absolute; right:-6px; bottom:-9px; min-width:22px; height:21px; padding:0 5px;
+         display:flex; align-items:center; justify-content:center; background:#fff; color:#2c2f35;
+         border:1.5px solid #d8d2c4; border-radius:999px; font-size:.8rem; font-weight:800; line-height:1;
+         box-shadow:0 1px 3px rgba(0,0,0,.16); }
+
+  /* right panel */
+  .panel { flex:0 0 348px; min-width:296px; display:flex; flex-direction:column; min-height:0;
+           border:1px solid #e7e7ea; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .status { flex:0 0 auto; padding:11px 16px; font-weight:700; font-size:1.02rem; display:flex;
+            flex-direction:column; gap:2px; border-left:5px solid var(--accent); background:#fbf6ec; }
+  .status small { font-weight:500; color:var(--muted); font-size:.78rem; }
+  .status.over { background:#eaf4ea; border-left-color:var(--drop); }
+  .controls { flex:0 0 auto; display:flex; gap:6px; align-items:center; flex-wrap:wrap;
+              padding:7px 12px; border-top:1px solid #eee; background:#fbfaf6; }
+  .controls button { padding:3px 10px; font-size:.9rem; line-height:1.15; }
+  .controls select { padding:3px 8px; font-size:.85rem; max-width:150px; }
+  .controls .sp { flex:1 1 auto; }
+  .secthdr { flex:0 0 auto; font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+             color:#9a8a62; padding:9px 14px 4px; border-top:1px solid #eee; }
+  .line { flex:0 1 auto; max-height:24%; min-height:38px; overflow-y:auto; padding:0 0 6px; }
+  .line .lrow { display:grid; grid-template-columns:30px 1fr 1fr; align-items:center; gap:4px; padding:1px 12px; }
+  .line .lnum { color:#9aa0a6; font-variant-numeric:tabular-nums; font-size:.8rem; }
+  .line .ply { font-family:ui-monospace,Menlo,monospace; padding:2px 7px; border-radius:6px; cursor:pointer; color:#333; font-size:.86rem; }
+  .line .ply:hover { background:#efe9da; }
+  .line .ply.cur { background:var(--accent); color:#fff; }
+  .line .lempty { color:#b9b3a4; padding:4px 14px; font-size:.86rem; }
+  .moves { flex:1 1 auto; min-height:0; overflow-y:auto; }
+  .grouphdr { font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:9px 16px 3px; }
+  .grouphdr.m { color:var(--move); } .grouphdr.c { color:var(--cap); } .grouphdr.d { color:var(--drop); }
+  .move { display:flex; align-items:center; justify-content:space-between; gap:10px;
+          padding:6px 16px; border-bottom:1px solid #f3f3f5; cursor:pointer; font-size:.92rem; }
+  .move:hover { background:#faf7ef; }
+  .move .mv { font-family:ui-monospace,Menlo,monospace; }
+  .tags { display:flex; gap:5px; }
+  .tag { font-size:.7rem; font-weight:700; padding:1px 7px; border-radius:10px; white-space:nowrap; }
+  .tag.jump { background:#e7f0f0; color:var(--move); } .tag.promo { background:#f3ead2; color:var(--accent); }
+  .tag.mate { background:var(--drop); color:#fff; }
+
+  @media (max-width:900px), (max-height:640px) {
+    body { overflow:auto; height:auto; }
+    .main { flex-wrap:wrap; }
+    .left { flex-basis:100%; } .panel { flex-basis:100%; }
+    .boardbox { flex-direction:column; align-items:center; gap:9px; width:auto; }
+    .hands { flex-direction:row; align-self:stretch; justify-content:center; gap:10px; }
+    .tray { flex-direction:row; flex-wrap:wrap; justify-content:center; }
+    .traylbl { width:100%; margin-bottom:0; }
+    .chip-svg { width:48px; height:48px; }
+    #board { height:auto; width:min(360px, 92vw); }
+    .moves { max-height:48vh; }
+  }
+</style>
+</head>
+<body>
+  <header class="site-header">
+    <h1>Shogi4</h1>
+    <span class="tagline">A 4×4 animal drop-shogi — played move by move.</span>
+    <nav class="hlinks">
+      <button class="navbtn" id="howBtn">How it works</button>
+      <a href="https://ocastudios.com/four/shogi/">Oca Studios</a>
+      <a href="https://boardgamegeek.com/boardgame/146291/shogi4">BGG</a>
+    </nav>
+  </header>
+
+  <main class="main">
+    <section class="left">
+      <div class="boardbox">
+        <div class="hands">
+          <div class="tray" id="trayTop"></div>
+          <div class="tray" id="trayBottom"></div>
+        </div>
+        <div class="board-wrap"><svg id="board" viewBox="0 0 430 424"></svg></div>
+      </div>
+    </section>
+    <aside class="panel">
+      <div class="status" id="status">…</div>
+      <div class="controls">
+        <select id="clipSel" title="Load a recorded line"><option value="">Free play</option></select>
+        <button id="reset" title="Reset to start">↺</button>
+        <button id="back" title="Step back">◀</button>
+        <button id="fwd" title="Step forward">▶</button>
+        <span class="sp"></span>
+        <button id="importBtn" title="Import / export a game">⇄</button>
+      </div>
+      <div class="secthdr">Moves played</div>
+      <div class="line" id="lineBar"></div>
+      <div class="secthdr">Legal moves</div>
+      <div class="moves" id="moves"></div>
+    </aside>
+  </main>
+
+  <div class="modal" id="howModal" hidden>
+    <div class="modal-card">
+      <button class="modal-close" data-close aria-label="Close">×</button>
+      <h2>Shogi4</h2>
+      <p class="lead">Oca Studios' public-domain 4×4 animal drop-shogi — the third rung on the
+        small-shogi ladder (Dōbutsu 3×4 → <strong>Shogi4 4×4</strong> → Micro 4×5).</p>
+      <h3>The pieces</h3>
+      <p>Five per side. Each steps <strong>one square</strong> in its marked directions (the dots
+        on every tile show them, in that piece's forward sense). On reaching the opponent's last
+        rank the four non-royals <strong>evolve</strong> (royals never do):</p>
+      <ul>
+        <li><strong>King</strong> (Crane / Pheasant) — all 8 directions; royal, never evolves. Capturing it wins.</li>
+        <li><strong>Carp</strong> (P) — forward only → evolves to <strong>Koi</strong> (O).</li>
+        <li><strong>Tapir</strong> (T) — forward + both forward-diagonals → <strong>Baku</strong> (B).</li>
+        <li><strong>Raccoon-dog</strong> (R) — the four diagonals → <strong>Tanuki</strong> (N).</li>
+        <li><strong>Fox</strong> (F) — the four orthogonals → <strong>Kitsune</strong> (G).</li>
+      </ul>
+      <p>Koi, Baku and Tanuki all move as a silver general (forward + four diagonals); Kitsune
+        moves as a gold general. Evolved pieces are shown with an amber letter.</p>
+      <h3>The distinctive rules</h3>
+      <ul>
+        <li><strong>Friendly-jump</strong> — in any of its directions, a piece may leap a single
+          adjacent <em>ally</em> to land on the empty square two beyond. (Dōbutsu has no such rule.)</li>
+        <li><strong>Drops</strong> — a captured piece flips side, reverts to its base form, and may
+          be dropped onto any empty square <em>except the opponent's last rank</em>.</li>
+        <li><strong>Winning</strong> — capture the opposing royal. There is no check, no checkmate,
+          and no reach-the-far-side "Try"; moving into capture is legal.</li>
+      </ul>
+      <h3>What this is</h3>
+      <p>Shogi4 is <strong>not solved yet</strong> — there is no tablebase, so this viewer shows
+        <strong>legal moves only</strong> (no win/loss verdicts). Every move comes from the
+        project's rules engine, validated to the digit against the decompiled official app. Drag a
+        piece or click a move to play; <strong>◀ ▶</strong> step the line; the dropdown loads
+        recorded lines (try the rule demos). When the strong solution is computed, each move will
+        also carry its result and distance-to-mate.</p>
+      <p class="credit">Shogi4 © Oca Studios, released public domain. Engine + viewer by Brian Liou.</p>
+    </div>
+  </div>
+
+  <div class="modal" id="ioModal" hidden>
+    <div class="modal-card" style="width:460px">
+      <button class="modal-close" data-close aria-label="Close">×</button>
+      <h2>Import / export a game</h2>
+      <p class="lead">A space-separated move list in this viewer's notation (e.g.
+        <code>Ka1-a3 Kd4-d2</code>). Optionally start with <code>FROM:&lt;position&gt;</code>.</p>
+      <textarea id="ioText" rows="5" placeholder="Ka1-a3 Kd4-d2 …"></textarea>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button id="ioCopy">Copy</button>
+        <button id="ioLoad">Load</button>
+        <span style="flex:1"></span>
+        <button data-close>Close</button>
+      </div>
+      <p id="ioErr" style="color:var(--cap); font-size:.85rem; margin:10px 0 0; min-height:1em;"></p>
+    </div>
+  </div>
+
+<script>
+// ---- geometry ----
+const CELL = 96, MX = 34, MY = 28, SVGW = 430, SVGH = 424;
+const INITIAL = "KFRTP......ptrfk;0000;0000;1";
+const FILES = ["a", "b", "c", "d"];
+const NAMES = {K:"King", P:"Carp", T:"Tapir", R:"Raccoon-dog", F:"Fox",
+               O:"Koi", B:"Baku", N:"Tanuki", G:"Kitsune"};
+const EVOLVED = new Set(["O", "B", "N", "G"]);
+const HAND_SLOTS = ["P", "T", "R", "F"];
+// step directions in (dc, drf) — forward sense — mirroring engine/shogi4.py:DIRS
+const DIRS = {
+  K:[[-1,0],[1,0],[0,1],[0,-1],[-1,1],[1,1],[-1,-1],[1,-1]],
+  F:[[-1,0],[1,0],[0,1],[0,-1]],
+  R:[[-1,1],[1,1],[-1,-1],[1,-1]],
+  P:[[0,1]],
+  T:[[0,1],[-1,1],[1,1]],
+  O:[[0,1],[-1,1],[1,1],[-1,-1],[1,-1]],
+  B:[[0,1],[-1,1],[1,1],[-1,-1],[1,-1]],
+  N:[[0,1],[-1,1],[1,1],[-1,-1],[1,-1]],
+  G:[[0,1],[-1,1],[1,1],[-1,0],[1,0],[0,-1]],
+};
+
+// ---- state ----
+let CLIPS = {};                  // id -> clip (loaded from clips.json)
+let line = [{ pos: INITIAL, move: null, from: null, to: null }];
+let cursor = 0;
+let curParsed = null, curMoves = [];
+let byBoard = {}, byDrop = {};
+let selected = null, targets = [];
+let press = null, hoverTo = null, hoverMove = null, lastMove = null, lift = null;
+let over = null;                 // {winner:'sente'|'gote', reason} when the game has ended
+
+// ---- coords: row 1 (P1 home) at the bottom, row 4 at the top ----
+const cx = c => MX + (c - 1) * CELL + CELL / 2;
+const cyr = r => MY + (4 - r) * CELL + CELL / 2;
+const cellX = c => MX + (c - 1) * CELL;
+const cellY = r => MY + (4 - r) * CELL;
+
+function parsePos(enc) {
+  const [cells, h1, h2, stm] = enc.split(";");
+  const out = [];
+  for (let i = 0; i < 16; i++) {
+    const ch = cells[i];
+    if (ch === ".") continue;
+    out.push({ c: i % 4 + 1, r: (i / 4 | 0) + 1, piece: ch.toUpperCase(),
+               owner: ch === ch.toUpperCase() ? "sente" : "gote" });
+  }
+  const hand = s => ({ P:+s[0], T:+s[1], R:+s[2], F:+s[3] });
+  return { side: stm === "1" ? "sente" : "gote", cells: out,
+           hands: { sente: hand(h1), gote: hand(h2) } };
+}
+
+// ---- SVG pieces ----
+function dotsFor(letter, owner, cxp, cyp, rr, dr, dotc) {
+  const fwd = owner === "sente" ? 1 : -1;
+  let s = "";
+  for (const [dc, drf] of (DIRS[letter] || [])) {
+    const dx = dc, dy = -drf * fwd;
+    s += `<circle class="pc" cx="${(cxp + dx * rr).toFixed(1)}" cy="${(cyp + dy * rr).toFixed(1)}" r="${dr.toFixed(1)}" fill="${dotc}"/>`;
+  }
+  return s;
+}
+function pieceTile(cxp, cyp, letter, owner, ghost) {
+  const half = CELL * 0.40;
+  const up = owner === "sente";
+  const fill = up ? "var(--sente)" : "var(--gote)";
+  const stroke = up ? "var(--sente-line)" : "var(--gote-line)";
+  const dotc = up ? "#7a4a2a" : "#dbe2ec";
+  const ink = EVOLVED.has(letter) ? "var(--accent)" : (up ? "var(--sente-ink)" : "var(--gote-ink)");
+  let p = ghost ? `<g opacity="0.5">` : ``;
+  p += `<rect class="pc" x="${(cxp-half).toFixed(1)}" y="${(cyp-half).toFixed(1)}" width="${(2*half).toFixed(1)}" `
+     + `height="${(2*half).toFixed(1)}" rx="${(half*0.22).toFixed(1)}" fill="${fill}" stroke="${stroke}" `
+     + `stroke-width="2"${ghost ? ` stroke-dasharray="5 3"` : ` filter="url(#tsh)"`}/>`;
+  p += dotsFor(letter, owner, cxp, cyp, half * 0.80, half * 0.105, dotc);
+  p += `<text class="pc" x="${cxp.toFixed(1)}" y="${(cyp + half*0.30).toFixed(1)}" text-anchor="middle" `
+     + `font-size="${(half*0.95).toFixed(1)}" font-weight="800" fill="${ink}">${letter}</text>`;
+  return p + (ghost ? `</g>` : ``);
+}
+function chipSVG(letter, owner) {
+  const c = 16, rr = 12.5, dr = 1.7;
+  const up = owner === "sente";
+  const dotc = up ? "#7a4a2a" : "#dbe2ec";
+  const fill = up ? "var(--sente)" : "var(--gote)", stroke = up ? "var(--sente-line)" : "var(--gote-line)";
+  const ink = EVOLVED.has(letter) ? "var(--accent)" : (up ? "var(--sente-ink)" : "var(--gote-ink)");
+  return `<svg class="chip-svg" viewBox="0 0 32 32">`
+    + `<rect x="3" y="3" width="26" height="26" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>`
+    + dotsFor(letter, owner, c, c, rr, dr, dotc)
+    + `<text x="16" y="20.5" text-anchor="middle" font-size="14" font-weight="800" fill="${ink}">${letter}</text></svg>`;
+}
+
+function arrow(from, to) {
+  const [x1, y1] = [cx(from.c), cyr(from.r)], [x2, y2] = [cx(to.c), cyr(to.r)];
+  const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx, dy) || 1, ux = dx/len, uy = dy/len, px = -uy, py = ux;
+  const w = CELL*0.12, head = CELL*0.32, hw = CELL*0.20;
+  const sx = x1 + ux*CELL*0.22, sy = y1 + uy*CELL*0.22;
+  const tipx = x2 - ux*CELL*0.06, tipy = y2 - uy*CELL*0.06;
+  const bx = tipx - ux*head, by = tipy - uy*head, col = "#e08220";
+  return `<g opacity="0.9"><line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="${col}" stroke-width="${w.toFixed(1)}" stroke-linecap="round"/>`
+    + `<polygon points="${tipx.toFixed(1)},${tipy.toFixed(1)} ${(bx+px*hw).toFixed(1)},${(by+py*hw).toFixed(1)} ${(bx-px*hw).toFixed(1)},${(by-py*hw).toFixed(1)}" fill="${col}"/></g>`;
+}
+
+function defs() {
+  return `<defs>
+    <filter id="tsh" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="1.3" stdDeviation="1.3" flood-color="#000" flood-opacity="0.30"/></filter>
+    <filter id="bsh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity="0.18"/></filter>
+    <clipPath id="bclip"><rect x="${MX}" y="${MY}" width="${4*CELL}" height="${4*CELL}" rx="9"/></clipPath>
+  </defs>`;
+}
+
+function renderBoard(parsed) {
+  const occ = {};
+  parsed.cells.forEach(c => occ[c.c + "," + c.r] = c);
+  let s = defs();
+
+  // board card + promotion-rank tints (row 4 = P1's last rank; row 1 = P2's)
+  s += `<rect x="${MX}" y="${MY}" width="${4*CELL}" height="${4*CELL}" rx="9" fill="var(--board)" filter="url(#bsh)"/>`;
+  s += `<g clip-path="url(#bclip)">`;
+  s += `<rect x="${MX}" y="${cellY(4)}" width="${4*CELL}" height="${CELL}" fill="var(--promo)"/>`;
+  s += `<rect x="${MX}" y="${cellY(1)}" width="${4*CELL}" height="${CELL}" fill="var(--promo)"/>`;
+  s += `</g>`;
+
+  // grid + frame
+  for (let i = 1; i < 4; i++) {
+    s += `<line x1="${MX+i*CELL}" y1="${MY}" x2="${MX+i*CELL}" y2="${MY+4*CELL}" stroke="#00000018" stroke-width="1"/>`;
+    s += `<line x1="${MX}" y1="${MY+i*CELL}" x2="${MX+4*CELL}" y2="${MY+i*CELL}" stroke="#00000018" stroke-width="1"/>`;
+  }
+  s += `<rect x="${MX}" y="${MY}" width="${4*CELL}" height="${4*CELL}" rx="9" fill="none" stroke="var(--board-line)" stroke-width="3"/>`;
+
+  // coordinates
+  for (let f = 0; f < 4; f++)
+    s += `<text x="${cx(f+1)}" y="${MY-9}" font-size="13" text-anchor="middle" fill="#9a8a62" font-weight="700">${FILES[f]}</text>`;
+  for (let r = 1; r <= 4; r++)
+    s += `<text x="${MX-13}" y="${cyr(r)+5}" font-size="13" text-anchor="middle" fill="#9a8a62" font-weight="700">${r}</text>`;
+
+  // last-move highlight
+  if (lastMove) for (const sq of [lastMove.from, lastMove.to]) if (sq)
+    s += `<rect x="${cellX(sq.c)}" y="${cellY(sq.r)}" width="${CELL}" height="${CELL}" fill="#f6d873" opacity="0.45"/>`;
+
+  // selected piece
+  if (selected && selected.kind === "board")
+    s += `<rect x="${cellX(selected.from.c)}" y="${cellY(selected.from.r)}" width="${CELL}" height="${CELL}" fill="#d98a2b" opacity="0.28"/>`;
+
+  // legal-destination markers
+  for (const t of targets) {
+    if (occ[t.c + "," + t.r])
+      s += `<circle cx="${cx(t.c)}" cy="${cyr(t.r)}" r="${CELL*0.45}" fill="none" stroke="var(--move)" stroke-width="4" opacity="0.7"/>`;
+    else
+      s += `<circle cx="${cx(t.c)}" cy="${cyr(t.r)}" r="${CELL*0.15}" fill="var(--move)" opacity="0.45"/>`;
+  }
+
+  // hover ring
+  if (hoverTo)
+    s += `<rect x="${cellX(hoverTo.c)+1.5}" y="${cellY(hoverTo.r)+1.5}" width="${CELL-3}" height="${CELL-3}" rx="4" fill="none" stroke="var(--accent)" stroke-width="3"/>`;
+
+  // pieces (the dragged one is lifted off)
+  for (const p of parsed.cells) {
+    if (lift && selected && selected.kind === "board"
+        && p.c === selected.from.c && p.r === selected.from.r) continue;
+    s += pieceTile(cx(p.c), cyr(p.r), p.piece, p.owner);
+  }
+
+  // hovered-move preview
+  if (hoverMove) {
+    const to = hoverMove.to;
+    if (hoverMove.from) {
+      s += `<rect x="${cellX(to.c)+1.5}" y="${cellY(to.r)+1.5}" width="${CELL-3}" height="${CELL-3}" rx="4" fill="none" stroke="#e08220" stroke-width="3" opacity="0.85"/>`;
+      s += arrow(hoverMove.from, to);
+    } else {
+      s += pieceTile(cx(to.c), cyr(to.r), hoverMove.piece, parsed.side, true);
+    }
+  }
+
+  // floating dragged piece
+  if (lift) {
+    s += `<g transform="translate(${lift.x.toFixed(1)},${lift.y.toFixed(1)})" style="pointer-events:none">`
+       + pieceTile(0, 0, lift.piece, lift.owner) + `</g>`;
+  }
+
+  const b = document.getElementById("board");
+  b.innerHTML = s;
+  b.classList.toggle("grab", !over && parsed.cells.length > 0);
+  renderHands(parsed);
+}
+
+function renderHands(parsed) {
+  const tray = (owner) => {
+    const counts = parsed.hands[owner];
+    const lbl = `<span class="traylbl">${owner === "sente" ? "First player" : "Second player"}</span>`;
+    const slots = HAND_SLOTS.map(p => {
+      const n = counts[p] || 0, ghost = n === 0;
+      const sel = !ghost && selected && selected.kind === "hand" && selected.piece === p && selected.owner === owner ? " sel" : "";
+      const chip = `<span class="chip${ghost ? " ghost" : ""}${sel}"${ghost ? "" : ` data-piece="${p}"`}>${chipSVG(p, owner)}</span>`;
+      return `<span class="slot">${chip}${n > 1 ? `<span class="cnt">×${n}</span>` : ``}</span>`;
+    }).join("");
+    return lbl + slots;
+  };
+  const top = document.getElementById("trayTop"), bot = document.getElementById("trayBottom");
+  top.innerHTML = tray("gote"); bot.innerHTML = tray("sente");
+  top.classList.toggle("active", !over && parsed.side === "gote");
+  bot.classList.toggle("active", !over && parsed.side === "sente");
+}
+
+// ---- right panel ----
+function who(side) { return side === "sente" ? "First player" : "Second player"; }
+
+function renderStatus() {
+  const el = document.getElementById("status");
+  if (over) {
+    el.className = "status over";
+    el.innerHTML = `🏆 ${who(over.winner)} wins <small>${over.reason} · game over</small>`;
+    return;
+  }
+  el.className = "status";
+  el.innerHTML = `${who(curParsed.side)} to move <small>ply ${cursor} · Shogi4 is unsolved — legal moves only</small>`;
+}
+
+const GROUPS = [["m", "Moves", m => m.kind === "m" && !m.capture],
+                ["c", "Captures", m => m.kind === "m" && m.capture],
+                ["d", "Drops", m => m.kind === "d"]];
+
+function renderMoves() {
+  const box = document.getElementById("moves");
+  box.innerHTML = "";
+  if (over) {
+    box.innerHTML = `<div class="lempty" style="padding:14px 16px">Game over — use ◀ or ↺ to keep exploring.</div>`;
+    return;
+  }
+  if (!curMoves.length) {
+    box.innerHTML = `<div class="lempty" style="padding:14px 16px">No legal moves.</div>`;
+    return;
+  }
+  for (const [cls, label, pred] of GROUPS) {
+    const ms = curMoves.filter(pred);
+    if (!ms.length) continue;
+    const h = document.createElement("div");
+    h.className = "grouphdr " + cls;
+    h.textContent = `${label} · ${ms.length}`;
+    box.appendChild(h);
+    for (const m of ms) {
+      const row = document.createElement("div");
+      row.className = "move";
+      let tags = "";
+      if (m.jump) tags += `<span class="tag jump">jump</span>`;
+      if (m.promo) tags += `<span class="tag promo">evolve</span>`;
+      if (m.terminal) tags += `<span class="tag mate">wins</span>`;
+      row.innerHTML = `<span class="mv">${m.notation}</span><span class="tags">${tags}</span>`;
+      row.onmouseenter = () => { hoverMove = m; renderBoard(curParsed); };
+      row.onmouseleave = () => { hoverMove = null; renderBoard(curParsed); };
+      row.onclick = () => playMove(m);
+      box.appendChild(row);
+    }
+  }
+}
+
+function renderLine() {
+  const bar = document.getElementById("lineBar");
+  if (line.length <= 1) { bar.innerHTML = `<div class="lempty">No moves yet — play a move or load a line.</div>`; return; }
+  let h = "";
+  for (let i = 1; i < line.length; i += 2) {
+    const w = `<span class="ply${i === cursor ? " cur" : ""}" data-i="${i}">${line[i].move}</span>`;
+    const b = (i + 1 < line.length)
+      ? `<span class="ply${i + 1 === cursor ? " cur" : ""}" data-i="${i + 1}">${line[i + 1].move}</span>` : "";
+    h += `<div class="lrow"><span class="lnum">${(i + 1) / 2}.</span>${w}${b}</div>`;
+  }
+  bar.innerHTML = h;
+  const cur = bar.querySelector(".ply.cur");
+  if (cur) cur.scrollIntoView({ block: "nearest" });
+}
+
+// ---- core: render a position from /api data ----
+function render(data) {
+  curParsed = parsePos(data.pos);
+  curMoves = data.moves;
+  byBoard = {}; byDrop = {};
+  for (const m of data.moves) {
+    if (m.from) byBoard[`${m.from.c}${m.from.r}-${m.to.c}${m.to.r}`] = m;
+    else byDrop[`${m.piece}-${m.to.c}${m.to.r}`] = m;
+  }
+  over = curMoves.length ? null : { winner: curParsed.side === "sente" ? "gote" : "sente",
+                                    reason: "no legal moves" };
+  renderBoard(curParsed); renderStatus(); renderMoves(); renderLine();
+}
+
+async function fetchPos(enc) {
+  const r = await fetch("/api?pos=" + encodeURIComponent(enc));
+  if (!r.ok) throw new Error("server returned " + r.status);
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  return d;
+}
+async function showPos(enc) {
+  clearSelection(); hoverTo = null; hoverMove = null; lift = null;
+  try { render(await fetchPos(enc)); }
+  catch (e) {
+    document.getElementById("status").innerHTML =
+      `<span style="color:var(--cap)">Cannot reach the engine.</span><small>Run <code>python3 explorer/serve.py</code> and reload. (${e.message})</small>`;
+  }
+}
+
+// render a terminal position (a royal was captured): board from enc, banner, no moves
+function showTerminal(enc, winner) {
+  clearSelection(); hoverTo = null; hoverMove = null; lift = null;
+  curParsed = parsePos(enc); curMoves = []; byBoard = {}; byDrop = {};
+  over = { winner, reason: "royal captured" };
+  renderBoard(curParsed); renderStatus(); renderMoves(); renderLine();
+}
+
+function playMove(m) {
+  if (over) return;
+  line = line.slice(0, cursor + 1);
+  lastMove = { from: m.from, to: m.to };
+  line.push({ pos: m.child, move: m.notation, from: m.from, to: m.to, terminal: m.terminal });
+  cursor = line.length - 1;
+  if (m.terminal) showTerminal(m.child, curParsed.side);
+  else showPos(m.child);
+}
+
+function jumpTo(i) {
+  if (i < 0 || i >= line.length) return;
+  cursor = i;
+  const node = line[i];
+  lastMove = node.move ? { from: node.from, to: node.to } : null;
+  if (node.terminal) showTerminal(node.pos, parsePos(line[i - 1].pos).side);
+  else showPos(node.pos);
+}
+
+function resetGame() {
+  line = [{ pos: INITIAL, move: null, from: null, to: null }];
+  cursor = 0; lastMove = null; over = null;
+  document.getElementById("clipSel").value = "";
+  showPos(INITIAL);
+}
+
+function loadClip(clip) {
+  line = [{ pos: clip.start, move: null, from: null, to: null }];
+  for (const st of clip.steps)
+    line.push({ pos: st.child, move: st.notation, from: st.from, to: st.to, terminal: st.terminal });
+  cursor = 0; lastMove = null; over = null;
+  showPos(clip.start);
+}
+
+// ---- selection + drag (adapted from the Dōbutsu explorer) ----
+function squareFromEvent(e) {
+  const r = document.getElementById("board").getBoundingClientRect();
+  const x = (e.clientX - r.left) * (SVGW / r.width);
+  const y = (e.clientY - r.top) * (SVGH / r.height);
+  const c = Math.floor((x - MX) / CELL) + 1, sr = Math.floor((y - MY) / CELL);
+  const rr = 4 - sr;
+  return (c < 1 || c > 4 || rr < 1 || rr > 4) ? null : { c, r: rr };
+}
+function boardPoint(e) {
+  const r = document.getElementById("board").getBoundingClientRect();
+  return { x: (e.clientX - r.left) * (SVGW / r.width), y: (e.clientY - r.top) * (SVGH / r.height) };
+}
+function pieceAt(sq) { return curParsed && curParsed.cells.find(c => c.c === sq.c && c.r === sq.r); }
+function targetsFor(sel) {
+  const map = sel.kind === "board" ? byBoard : byDrop;
+  const prefix = sel.kind === "board" ? `${sel.from.c}${sel.from.r}-` : `${sel.piece}-`;
+  const out = [];
+  for (const k in map) if (k.startsWith(prefix)) { const t = k.slice(prefix.length); out.push({ c: +t[0], r: +t[1] }); }
+  return out;
+}
+function isTarget(sel, sq) {
+  if (!sel || !sq) return null;
+  const key = sel.kind === "board" ? `${sel.from.c}${sel.from.r}-${sq.c}${sq.r}` : `${sel.piece}-${sq.c}${sq.r}`;
+  return (sel.kind === "board" ? byBoard : byDrop)[key] || null;
+}
+function clearSelection() { selected = null; targets = []; }
+function selectThing(sel) { const t = targetsFor(sel); if (t.length) { selected = sel; targets = t; } else clearSelection(); }
+function sameSel(a, b) {
+  return a && b && a.kind === b.kind &&
+    (a.kind === "board" ? (a.from.c === b.from.c && a.from.r === b.from.r)
+                        : (a.piece === b.piece && a.owner === b.owner));
+}
+function startLift() {
+  if (!selected) { lift = null; return; }
+  let piece, owner;
+  if (selected.kind === "board") { const c = pieceAt(selected.from); if (!c) { lift = null; return; } piece = c.piece; owner = c.owner; }
+  else { piece = selected.piece; owner = selected.owner; }
+  lift = { kind: selected.kind, piece, owner, x: 0, y: 0 };
+}
+function execMove(m) { clearSelection(); hoverTo = null; press = null; lift = null; playMove(m); }
+
+document.addEventListener("pointerdown", e => {
+  if (over) return;
+  const board = document.getElementById("board");
+  let intent = "clear";
+  if (board.contains(e.target)) {
+    const sq = squareFromEvent(e);
+    const m = isTarget(selected, sq);
+    if (m) { e.preventDefault(); execMove(m); return; }
+    if (sq && pieceAt(sq)) {
+      const sel = { kind: "board", from: sq };
+      if (sameSel(selected, sel)) clearSelection();
+      else { selectThing(sel); if (selected) intent = "select"; }
+    } else clearSelection();
+    e.preventDefault();
+  } else if (e.target.closest(".tray")) {
+    const tray = e.target.closest(".tray"), chip = e.target.closest(".chip");
+    const owner = tray.id === "trayTop" ? "gote" : "sente";
+    if (chip && chip.dataset.piece && curParsed && owner === curParsed.side) {
+      const sel = { kind: "hand", piece: chip.dataset.piece, owner };
+      if (sameSel(selected, sel)) clearSelection();
+      else { selectThing(sel); if (selected) intent = "select"; }
+      e.preventDefault();
+    } else clearSelection();
+  } else clearSelection();
+  press = { intent, x: e.clientX, y: e.clientY, moved: false };
+  if (curParsed) renderBoard(curParsed);
+});
+window.addEventListener("pointermove", e => {
+  if (!press || press.intent !== "select") return;
+  if (!press.moved) { if (Math.hypot(e.clientX - press.x, e.clientY - press.y) < 6) return; press.moved = true; startLift(); }
+  hoverTo = squareFromEvent(e);
+  if (lift) { const p = boardPoint(e); lift.x = p.x; lift.y = p.y; }
+  if (curParsed) renderBoard(curParsed);
+});
+window.addEventListener("pointerup", e => {
+  if (!press) return;
+  if (press.intent === "select" && press.moved) {
+    const m = isTarget(selected, squareFromEvent(e));
+    if (m) { execMove(m); return; }
+  }
+  press = null; hoverTo = null; lift = null;
+  if (curParsed) renderBoard(curParsed);
+});
+window.addEventListener("pointercancel", () => { press = null; hoverTo = null; lift = null; if (curParsed) renderBoard(curParsed); });
+
+// ---- controls ----
+document.getElementById("reset").onclick = resetGame;
+document.getElementById("back").onclick = () => jumpTo(cursor - 1);
+document.getElementById("fwd").onclick = () => jumpTo(cursor + 1);
+document.getElementById("lineBar").addEventListener("click", e => {
+  const p = e.target.closest(".ply"); if (p) jumpTo(+p.dataset.i);
+});
+document.getElementById("clipSel").addEventListener("change", e => {
+  const id = e.target.value;
+  if (id && CLIPS[id]) loadClip(CLIPS[id]); else resetGame();
+});
+
+// modals
+function openModal(id) { document.getElementById(id).hidden = false; }
+function closeModals() { document.querySelectorAll(".modal").forEach(m => m.hidden = true); }
+document.getElementById("howBtn").addEventListener("click", () => openModal("howModal"));
+document.getElementById("importBtn").addEventListener("click", () => {
+  const txt = line.slice(1).map(n => n.move).join(" ");
+  document.getElementById("ioText").value =
+    (line[0].pos !== INITIAL ? "FROM:" + line[0].pos + " " : "") + txt;
+  document.getElementById("ioErr").textContent = "";
+  openModal("ioModal");
+});
+document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", closeModals));
+document.querySelectorAll(".modal").forEach(m =>
+  m.addEventListener("click", e => { if (e.target === m) closeModals(); }));
+document.getElementById("ioCopy").onclick = () =>
+  navigator.clipboard.writeText(document.getElementById("ioText").value);
+
+// import: resolve a notation list move-by-move against /api (notation is the key)
+document.getElementById("ioLoad").onclick = async () => {
+  const err = document.getElementById("ioErr");
+  err.textContent = "";
+  let text = document.getElementById("ioText").value.trim();
+  let startEnc = INITIAL;
+  const fm = text.match(/^FROM:(\S+)\s*/);
+  if (fm) { startEnc = fm[1]; text = text.slice(fm[0].length); }
+  const toks = text.split(/\s+/).filter(Boolean);
+  try {
+    const newLine = [{ pos: startEnc, move: null, from: null, to: null }];
+    let enc = startEnc;
+    for (const tok of toks) {
+      const data = await fetchPos(enc);
+      const m = data.moves.find(x => x.notation === tok);
+      if (!m) throw new Error(`illegal / unknown move: ${tok}`);
+      newLine.push({ pos: m.child, move: m.notation, from: m.from, to: m.to, terminal: m.terminal });
+      if (m.terminal) break;
+      enc = m.child;
+    }
+    line = newLine; cursor = 0; lastMove = null; over = null;
+    document.getElementById("clipSel").value = "";
+    closeModals();
+    showPos(startEnc);
+  } catch (e) { err.textContent = e.message; }
+};
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { closeModals(); return; }
+  if (document.querySelector(".modal:not([hidden])")) return;
+  if (e.target.tagName === "TEXTAREA") return;
+  if (e.key === "ArrowLeft") { e.preventDefault(); jumpTo(cursor - 1); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); jumpTo(cursor + 1); }
+});
+
+// ---- boot ----
+async function boot() {
+  try {
+    const clips = (await (await fetch("/clips.json")).json()).clips || [];
+    const sel = document.getElementById("clipSel");
+    for (const c of clips) {
+      CLIPS[c.id] = c;
+      const o = document.createElement("option");
+      o.value = c.id; o.textContent = c.title;
+      sel.appendChild(o);
+    }
+  } catch { /* clips are optional */ }
+  const q = new URLSearchParams(location.search);
+  const g = q.get("game");
+  if (g && CLIPS[g]) { document.getElementById("clipSel").value = g; loadClip(CLIPS[g]); return; }
+  showPos(INITIAL);
+}
+boot();
+</script>
+</body>
+</html>
