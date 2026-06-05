@@ -8,6 +8,8 @@
 //! Board: 16 squares, index s = (row-1)*4 + (col-1), col,row in 1..4.
 //! "Forward" = +row for player_1, -row for player_2.
 
+use std::collections::{HashMap, VecDeque};
+
 pub const P1: u8 = 0;
 pub const P2: u8 = 1;
 
@@ -62,7 +64,7 @@ fn dirs(a: u8) -> &'static [(i8, i8)] {
 #[inline] fn row(s: usize) -> i8 { (s / 4) as i8 + 1 }
 #[inline] fn on(c: i8, r: i8) -> bool { (1..=4).contains(&c) && (1..=4).contains(&r) }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Pos {
     pub board: [u8; 16],    // 0 empty, else packed cell
     pub hands: [[u8; 4]; 2], // [owner][base_slot]
@@ -261,4 +263,135 @@ pub fn verify_golden(path: &str) -> Result<(usize, usize), String> {
         }
     }
     Ok((n, bad))
+}
+
+// ---------------- in-RAM retrograde subgame solver (rung 2) ----------------
+//
+// Closed subgame = {2 kings (one per owner) + the given capturable types}. Each
+// extra piece can be in either hand (base) or on the board (either owner, base or
+// promoted). This mirrors engine/shogi4.py's enumerate_positions + retrograde, so
+// its W/L/D counts must match the Python oracle to the unit. (Uses a HashMap index
+// + explicit graph: correct and fast, but RAM-bound -- the dense ranking function +
+// un-move generation that scale past RAM are the next increment.)
+
+fn place_extras(types: &[u8], board: &[u8; 16], hands: &[[u8; 4]; 2], out: &mut Vec<Pos>) {
+    if types.is_empty() {
+        for stm in [P1, P2] {
+            out.push(Pos { board: *board, hands: *hands, stm });
+        }
+        return;
+    }
+    let t = types[0];
+    let rest = &types[1..];
+    for owner in [P1, P2] {
+        // option: in a hand (base)
+        let mut h = *hands;
+        h[owner as usize][base_slot(t)] += 1;
+        place_extras(rest, board, &h, out);
+    }
+    for s in 0..16 {
+        if board[s] != 0 {
+            continue;
+        }
+        for owner in [P1, P2] {
+            for &face in &[t, promo(t)] {
+                if face == t && row(s) == if owner == P1 { 4 } else { 1 } {
+                    continue; // a base piece can't sit on its promotion rank
+                }
+                let mut b = *board;
+                b[s] = mk_cell(owner, face);
+                place_extras(rest, &b, hands, out);
+            }
+        }
+    }
+}
+
+pub fn enumerate_subgame(extra: &[u8]) -> Vec<Pos> {
+    let mut out = Vec::new();
+    for k1 in 0..16usize {
+        for k2 in 0..16usize {
+            if k1 == k2 {
+                continue;
+            }
+            let mut b = [0u8; 16];
+            b[k1] = mk_cell(P1, KING);
+            b[k2] = mk_cell(P2, KING);
+            place_extras(extra, &b, &[[0u8; 4]; 2], &mut out);
+        }
+    }
+    out
+}
+
+/// Full retrograde W/L/D over the closed subgame. Returns (wins, losses, draws).
+pub fn solve_subgame(extra: &[u8]) -> (u64, u64, u64) {
+    let mut index: HashMap<Pos, u32> = HashMap::new();
+    let mut nodes: Vec<Pos> = Vec::new();
+    for p in enumerate_subgame(extra) {
+        if !index.contains_key(&p) {
+            index.insert(p, nodes.len() as u32);
+            nodes.push(p);
+        }
+    }
+    let n = nodes.len();
+    let mut children: Vec<Vec<u32>> = vec![Vec::new(); n];
+    let mut imm_win = vec![false; n];
+    let mut has_move = vec![false; n];
+    for (i, p) in nodes.iter().enumerate() {
+        for mv in legal_moves(p) {
+            has_move[i] = true;
+            let (child, kc) = make(p, mv);
+            if kc {
+                imm_win[i] = true;
+            } else {
+                children[i].push(*index.get(&child).expect("subgame is closed"));
+            }
+        }
+    }
+    let mut parents: Vec<Vec<u32>> = vec![Vec::new(); n];
+    for i in 0..n {
+        for &j in &children[i] {
+            parents[j as usize].push(i as u32);
+        }
+    }
+    // label: 0 unknown, 1 Win, 2 Loss, 3 Draw
+    let mut label = vec![0u8; n];
+    let mut win_children = vec![0u32; n];
+    let mut q: VecDeque<u32> = VecDeque::new();
+    for i in 0..n {
+        if imm_win[i] {
+            label[i] = 1;
+            q.push_back(i as u32);
+        } else if !has_move[i] {
+            label[i] = 2;
+            q.push_back(i as u32);
+        }
+    }
+    while let Some(i) = q.pop_front() {
+        let li = label[i as usize];
+        for k in 0..parents[i as usize].len() {
+            let p = parents[i as usize][k] as usize;
+            if label[p] != 0 {
+                continue;
+            }
+            if li == 2 {
+                label[p] = 1; // a child is a Loss -> parent Wins
+                q.push_back(p as u32);
+            } else {
+                win_children[p] += 1;
+                if win_children[p] as usize == children[p].len() && !imm_win[p] {
+                    label[p] = 2; // all children Win -> parent Loses
+                    q.push_back(p as u32);
+                }
+            }
+        }
+    }
+    let (mut w, mut l, mut d) = (0u64, 0u64, 0u64);
+    for i in 0..n {
+        match label[i] {
+            1 => w += 1,
+            2 => l += 1,
+            _ => d += 1,
+        }
+    }
+    (w, l, d)
 }

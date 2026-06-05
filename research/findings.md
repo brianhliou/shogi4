@@ -148,10 +148,13 @@ These are artificial reduced games for pipeline validation, **not** sub-parts of
 conserve material, so the real game doesn't decompose into them). The `{2 kings}` 0-loss result is a
 correctness sanity check: with only kings you can always avoid a forced capture. **[measured]**
 
-**Correctness gate passed (Q5):** on every subgame above, **two independent solvers agree label-for-
-label** (reverse-BFS retrograde == forward value-iteration) and a **local consistency audit finds 0
-violations** (every Win has a move to a Loss; every Loss has all moves to Wins; every Draw has no
-move to a Loss and ≥1 to a Draw) — holding at 1.16M positions, not just toy sizes. **[measured]**
+**Correctness gate passed (Q5):** on every subgame above, **three independent solvers agree to the
+unit** — Python reverse-BFS retrograde, Python forward value-iteration, and the **Rust retrograde
+solver** (`solver/`, ~20× faster; cross-checked via the committed `engine/subgame_expected.txt`
+fixture) — and a **local consistency audit finds 0 violations** (every Win has a move to a Loss;
+every Loss has all moves to Wins; every Draw has no move to a Loss and ≥1 to a Draw). Holds at
+1.16M positions, e.g. `{2K+carp+fox}` = W 867,856 / L 206,964 / D 89,884. With the move-gen
+agreement (perft + golden), the **entire Rust pipeline is now cross-validated**. **[measured]**
 
 **Cost calibration:** the 2-piece subgame runs at ~286k edges/s in pure Python (1 core). The full
 solve is ~4×10¹⁴ edge-ops (≈3×10¹³ positions × ~13 branching), so Python would take *decades* — but
