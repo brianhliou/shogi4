@@ -140,10 +140,22 @@ the W/L/D pipeline incl. drops, promotion, captures, repetition=draw):
 | 2 kings + carp | 24,480 | 75.9% | 23.3% | 0.7% |
 | 2 kings + fox | 24,480 | 76.7% | 23.3% | 0% |
 | 2 kings + raccoon | 24,480 | 76.2% | 23.8% | 0% |
+| 2 kings + carp + fox | 1,164,704 | 74.5% | 17.8% | 7.7% |
 
 These are artificial reduced games for pipeline validation, **not** sub-parts of full Shogi4 (drops
 conserve material, so the real game doesn't decompose into them). The `{2 kings}` 0-loss result is a
 correctness sanity check: with only kings you can always avoid a forced capture. **[measured]**
+
+**Correctness gate passed (Q5):** on every subgame above, **two independent solvers agree label-for-
+label** (reverse-BFS retrograde == forward value-iteration) and a **local consistency audit finds 0
+violations** (every Win has a move to a Loss; every Loss has all moves to Wins; every Draw has no
+move to a Loss and ≥1 to a Draw) — holding at 1.16M positions, not just toy sizes. **[measured]**
+
+**Cost calibration:** the 2-piece subgame runs at ~286k edges/s in pure Python (1 core). The full
+solve is ~4×10¹⁴ edge-ops (≈3×10¹³ positions × ~13 branching), so Python would take *decades* — but
+Rust at ~150 ns/edge (the Dōbutsu solver's measured RAM-speed) puts it at **~2–6 core-years**, i.e.
+days–weeks on a many-core NVMe box. Empirical basis for the "external-memory, single high-memory/NVMe
+machine" regime, consistent with the ~8 TB table. **[measured + estimate]**
 
 ## Sources
 

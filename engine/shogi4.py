@@ -197,8 +197,8 @@ def enumerate_positions(extra_types):
             yield from _place(list(extra_types), base, {P1: {}, P2: {}})
 
 
-def solve_subgame(extra_types):
-    """Full retrograde W/L/D over the closed subgame {2 kings + extra_types}."""
+def build_graph(extra_types):
+    """Enumerate the closed subgame {2 kings + extra_types} and build its move graph."""
     index, nodes = {}, []
     for p in enumerate_positions(extra_types):
         k = p.key()
@@ -208,15 +208,22 @@ def solve_subgame(extra_types):
     children = [[] for _ in range(n)]
     imm_win = [False] * n
     has_move = [False] * n
+    edges = 0
     for i, p in enumerate(nodes):
         for mv in legal_moves(p):
-            has_move[i] = True
+            has_move[i] = True; edges += 1
             child, kc = make(p, mv)
             if kc:
-                imm_win[i] = True
+                imm_win[i] = True                # king-capture: terminal win for stm
             else:
-                j = index[child.key()]           # closed: child must be in the set
-                children[i].append(j)
+                children[i].append(index[child.key()])   # closed: child is in the set
+    return {"n": n, "children": children, "imm_win": imm_win,
+            "has_move": has_move, "edges": edges}
+
+
+def label_retro(g):
+    """W/L/D by reverse-BFS retrograde from terminals (our production algorithm)."""
+    n, children, imm_win, has_move = g["n"], g["children"], g["imm_win"], g["has_move"]
     parents = [[] for _ in range(n)]
     for i in range(n):
         for j in children[i]:
@@ -240,29 +247,93 @@ def solve_subgame(extra_types):
                 win_children[p] += 1
                 if win_children[p] == len(children[p]) and not imm_win[p]:
                     label[p] = "L"; q.append(p)  # all children Win -> parent Loses
-    counts = {"W": 0, "L": 0, "D": 0}
+    return ["D" if x is None else x for x in label]
+
+
+def label_valueiter(g):
+    """INDEPENDENT solver: forward value-iteration to the same least fixpoint."""
+    n, children, imm_win, has_move = g["n"], g["children"], g["imm_win"], g["has_move"]
+    label = [None] * n
     for i in range(n):
-        lab = label[i] if label[i] else "D"
-        counts[lab] += 1
-    return nodes, label, counts
+        if imm_win[i]:
+            label[i] = "W"
+        elif not has_move[i]:
+            label[i] = "L"
+    changed = True
+    while changed:
+        changed = False
+        for i in range(n):
+            if label[i] is not None:
+                continue
+            ch = children[i]
+            if any(label[j] == "L" for j in ch):
+                label[i] = "W"; changed = True
+            elif ch and all(label[j] == "W" for j in ch):
+                label[i] = "L"; changed = True
+    return ["D" if x is None else x for x in label]
+
+
+def audit(g, label):
+    """Local consistency: every label must satisfy the W/L/D recurrence (0 = clean)."""
+    children, imm_win, has_move = g["children"], g["imm_win"], g["has_move"]
+    bad = 0
+    for i in range(g["n"]):
+        ch, L = children[i], label[i]
+        if imm_win[i]:
+            ok = L == "W"
+        elif not has_move[i]:
+            ok = L == "L"
+        elif L == "W":
+            ok = any(label[j] == "L" for j in ch)
+        elif L == "L":
+            ok = bool(ch) and all(label[j] == "W" for j in ch)
+        else:
+            ok = (not any(label[j] == "L" for j in ch)) and any(label[j] == "D" for j in ch)
+        bad += not ok
+    return bad
+
+
+def counts_of(label):
+    c = {"W": 0, "L": 0, "D": 0}
+    for x in label:
+        c[x] += 1
+    return c
 
 
 def main():
+    import time
     print("=== perft from the start position ===")
     s = start()
-    print(f"legal moves at root (perft 1): {perft(s, 1)}")
     for d in range(1, 7):
         print(f"  perft({d}) = {perft(s, d):,}")
 
-    print("\n=== tiny subgame retrograde solves (pipeline validation) ===")
+    print("\n=== cross-checked subgame solves (retrograde vs value-iteration + audit) ===")
     for extra in ([], ["carp"], ["fox"], ["raccoon"]):
-        label = "2 kings" + ("" if not extra else " + " + " + ".join(extra))
-        nodes, lab, c = solve_subgame(extra)
-        tot = len(nodes)
-        print(f"  {{{label}}}: {tot:,} positions -> "
-              f"W {c['W']:,} ({c['W']/tot:.1%})  "
-              f"L {c['L']:,} ({c['L']/tot:.1%})  "
-              f"D {c['D']:,} ({c['D']/tot:.1%})")
+        name = "2 kings" + ("" if not extra else " + " + " + ".join(extra))
+        g = build_graph(extra)
+        L1, L2 = label_retro(g), label_valueiter(g)
+        bad = audit(g, L1)
+        c, tot = counts_of(L1), g["n"]
+        print(f"  {{{name}}}: {tot:,} pos, {g['edges']:,} edges -> "
+              f"W {c['W']/tot:5.1%}  L {c['L']/tot:5.1%}  D {c['D']/tot:5.1%}   "
+              f"[retro==valueiter: {L1 == L2}; audit: {bad}]")
+        assert L1 == L2 and bad == 0, "*** CORRECTNESS CHECK FAILED ***"
+
+    print("\n=== scaling: 2-piece subgame (cost calibration) ===")
+    for extra in (["carp", "fox"],):
+        name = "2 kings + " + " + ".join(extra)
+        t0 = time.time()
+        g = build_graph(extra)
+        L = label_retro(g)
+        bad = audit(g, L)
+        dt = time.time() - t0
+        c, tot = counts_of(L), g["n"]
+        print(f"  {{{name}}}: {tot:,} pos, {g['edges']:,} edges, {dt:.1f}s "
+              f"(~{g['edges']/dt/1e3:.0f}k edges/s, pure Python) -> "
+              f"W {c['W']/tot:.1%}  L {c['L']/tot:.1%}  D {c['D']/tot:.1%}  [audit {bad}]")
+    print("\n  growth: 480 (0 pieces) -> 24,480 (1) -> ~1.5M (2): ~50-60x per added piece")
+    print("  (board saturates, so this does NOT extrapolate to the full ~3e13; the")
+    print("   enumerator gives the true size. This run calibrates per-edge time only.)")
 
 
 if __name__ == "__main__":
