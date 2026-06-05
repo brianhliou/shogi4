@@ -222,6 +222,19 @@ rung-4 cost driver** — and it places the compute estimate toward the realistic
 ~60–190 core-years, partly offset by the exact-2× LR fold. `{2K + one of each type}` (3.5B) is
 laptop-infeasible — the in-RAM ceiling is ~50–75M. **[measured — solver/src/bin/scale.rs]**
 
+**Distributed correctness — validated on one machine, for $0.** `sharded_check` simulates the
+rung-4 distributed solver: rank-range **shards** (each owning its slots' value+counter), predecessor
+updates routed to the owning shard (the **shuffle**), **BSP supersteps** behind a barrier, and
+zero-message **convergence**. It reproduces the oracle's W/L/D **for every shard count (1 / 4 / 16 /
+64)** on the subgames — proving (a) the distributed decomposition is correct and (b) the result is
+**invariant to shard count** (the algorithm is a confluent monotone fixpoint, as argued, so
+parallelization can't change the answer). Measured distributed metrics: **supersteps 1 → 54**
+(propagation depth ≈ max-DTM; the full game's ~hundreds of plies → ~hundreds of BSP barriers, not a
+bottleneck) and **~7 shuffle-messages per position** (`{2K+P+F}`: 8,098,044 msgs / 1,164,704 pos).
+That ratio grounds the rung-4 shuffle volume at ~7 × the solve domain ≈ **~15–30 PB** (a throughput
+requirement, ~$0 if kept node-local / same-AZ). This converts "distributed correctness" from a
+scale-time risk into a passed laptop test. **[measured — solver/src/bin/sharded_check.rs]**
+
 **Cost calibration:** the 2-piece subgame runs at ~286k edges/s in pure Python (1 core). The full
 solve is ~4×10¹⁴ edge-ops (≈3×10¹³ positions × ~13 branching), so Python would take *decades* — but
 Rust at ~150 ns/edge (the Dōbutsu solver's measured RAM-speed) puts it at **~2–6 core-years**, i.e.
