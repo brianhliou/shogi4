@@ -50,13 +50,21 @@ Tiny drop-shogi can collapse into a trivial fast win or a dead draw. Does Shogi4
 (friendly-jump + 4-of-5 promotion + drop limit + **no Try rule**) yield a balanced game or a short
 forced result? A short forced win is still a clean, publishable finding — not a failure.
 
-## Q5 — Correctness without an oracle
+## Q5 — Correctness (the engine HAS an oracle; the values do not)
 
-There is no external Shogi4 solution to check against. Define the correctness regime before the
-full solve: (a) brute-force forward minimax agreeing with the retrograde table on all small
-positions; (b) two independent move-gen/solver implementations agreeing; (c) full-table
-consistency audits (every win has a winning move; every loss has all moves losing; parity/DTM
-monotonicity). Inherited contract from `../micro-shogi`.
+Two layers, validated differently — and unlike `../micro-shogi`, we have a runnable reference:
+
+- **Engine (move-gen, promotion, drops, win) HAS a runnable oracle:** the decompiled official app
+  `prior-art-evidence/oca-shogi4-logic-decompiled.py`. Strip its pure rule functions
+  (`get_possible_squares`, `can_take_square`, `fake_take_square`, `capture`) into a standalone
+  Python harness, then **differential-test** the Rust engine against it on millions of random
+  positions, plus **perft** (move-path counts) matching to the digit at each depth. Caveat: this
+  validates against the *app's behaviour as ground truth*; the **repetition rule is ours** (the app
+  has none), so that one is validated by internal consistency, not the app.
+- **Solve values (W/L/D/DTM) have NO external oracle:** (a) brute-force forward minimax agreeing
+  with the retrograde table on small sub-games; (b) two independent solver implementations agreeing;
+  (c) full-table consistency audits (every Win → a move to opp-Loss; every Loss → all moves to
+  opp-Win; DTM monotonicity). Inherited from `../micro-shogi`.
 
 ## Q6 — Does friendly-jump change the retrograde unmove generation?
 
