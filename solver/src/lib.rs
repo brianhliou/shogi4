@@ -8,7 +8,7 @@
 //! Board: 16 squares, index s = (row-1)*4 + (col-1), col,row in 1..4.
 //! "Forward" = +row for player_1, -row for player_2.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 pub const P1: u8 = 0;
 pub const P2: u8 = 1;
@@ -71,7 +71,7 @@ pub struct Pos {
     pub stm: u8,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Move {
     Board { src: usize, dst: usize },
     Drop { base: u8, dst: usize },
@@ -708,6 +708,175 @@ pub fn solve_flat(types: &[u8], counts: &[u8]) -> (u64, u64, u64) {
     let (mut w, mut l, mut d) = (0u64, 0u64, 0u64);
     for i in 0..n {
         if !is_legal(&rk.unrank(i as u64)) {
+            continue;
+        }
+        match val[i] {
+            WIN => w += 1,
+            LOSS => l += 1,
+            _ => d += 1,
+        }
+    }
+    (w, l, d)
+}
+
+// ---------------- un-move generation (predecessors) ----------------
+//
+// The hard primitive for push-based retrograde: given q, produce every legal
+// position p with a legal move p -> q. We generate candidates by reversing each
+// forward-move shape (board move, capture, promotion, drop) and **verify each by
+// running `make` forward** — so correctness rides on the already-validated engine,
+// not on hand-written reverse logic. Material is conserved, so all predecessors
+// share q's inventory.
+
+fn add_if_pred(p: Pos, mv: Move, q: &Pos, set: &mut HashSet<Pos>) {
+    if !is_legal(&p) {
+        return;
+    }
+    if !legal_moves(&p).contains(&mv) {
+        return;
+    }
+    let (child, kc) = make(&p, mv);
+    if !kc && child == *q {
+        set.insert(p);
+    }
+}
+
+pub fn predecessors(q: &Pos) -> Vec<Pos> {
+    let y = if q.stm == P1 { P2 } else { P1 }; // the player who just moved
+    let x = q.stm; // the player whose piece could have been captured
+    let mut set: HashSet<Pos> = HashSet::new();
+    let empties: Vec<usize> = (0..16).filter(|&s| q.board[s] == 0).collect();
+
+    for dst in 0..16 {
+        let cell = q.board[dst];
+        if cell == 0 || c_owner(cell) != y {
+            continue;
+        }
+        let a_now = c_animal(cell);
+
+        // (1) reverse a DROP: a freshly-dropped piece is a Y-owned base piece.
+        if matches!(a_now, CARP | TAPIR | RACCOON | FOX) {
+            let mut p = *q;
+            p.board[dst] = 0;
+            p.hands[y as usize][base_slot(a_now)] += 1;
+            p.stm = y;
+            add_if_pred(p, Move::Drop { base: a_now, dst }, q, &mut set);
+        }
+
+        // (2) reverse a BOARD move. The mover sits at dst now; it came from some
+        //     empty `src`, and may have promoted on arrival and/or captured at dst.
+        let on_y_last = row(dst) == if y == P1 { 4 } else { 1 };
+        let promoted = matches!(a_now, KOI | BAKU | TANUKI | KITSUNE);
+        let pre_forms: &[u8] = if on_y_last && promoted {
+            &[] // filled below
+        } else {
+            std::slice::from_ref(&a_now)
+        };
+        let pre_two = [demote(a_now), a_now];
+        let pre_forms: &[u8] = if on_y_last && promoted { &pre_two } else { pre_forms };
+
+        for &a_pre in pre_forms {
+            for &src in &empties {
+                if src == dst {
+                    continue;
+                }
+                // (2a) no capture: dst was empty before the move
+                let mut p = *q;
+                p.board[src] = mk_cell(y, a_pre);
+                p.board[dst] = 0;
+                p.stm = y;
+                add_if_pred(p, Move::Board { src, dst }, q, &mut set);
+
+                // (2b) capture: dst held an X-piece that demoted into Y's hand
+                for t in [CARP, TAPIR, RACCOON, FOX] {
+                    if q.hands[y as usize][base_slot(t)] == 0 {
+                        continue;
+                    }
+                    let on_x_last = row(dst) == if x == P1 { 4 } else { 1 };
+                    for promoted_cap in [false, true] {
+                        if !promoted_cap && on_x_last {
+                            continue; // a base X-piece can't sit on X's last rank
+                        }
+                        let cap = if promoted_cap { promo(t) } else { t };
+                        let mut p = *q;
+                        p.board[src] = mk_cell(y, a_pre);
+                        p.board[dst] = mk_cell(x, cap);
+                        p.hands[y as usize][base_slot(t)] -= 1;
+                        p.stm = y;
+                        add_if_pred(p, Move::Board { src, dst }, q, &mut set);
+                    }
+                }
+            }
+        }
+    }
+    set.into_iter().collect()
+}
+
+/// Push-based retrograde (counter-BFS) over the rank-indexed flat array, using
+/// `predecessors` for backward propagation — no stored graph, no pull rescan.
+/// This is the algorithm the full external-memory solve runs. Returns (W, L, D).
+pub fn solve_push(types: &[u8], counts: &[u8]) -> (u64, u64, u64) {
+    const UNK: u8 = 0;
+    const WIN: u8 = 1;
+    const LOSS: u8 = 2;
+    let rk = Ranker::new(types, counts);
+    let n = rk.size() as usize;
+    let mut val = vec![UNK; n];
+    let mut cnt = vec![0u16; n]; // undecided non-king-capture children
+    let mut legal = vec![false; n];
+    let mut q: VecDeque<u64> = VecDeque::new();
+
+    // init: one forward pass to count children + seed terminals
+    for i in 0..n {
+        let pos = rk.unrank(i as u64);
+        if !is_legal(&pos) {
+            continue;
+        }
+        legal[i] = true;
+        let (mut imm_win, mut deg) = (false, 0u16);
+        for mv in legal_moves(&pos) {
+            let (_c, kc) = make(&pos, mv);
+            if kc {
+                imm_win = true;
+            } else {
+                deg += 1;
+            }
+        }
+        cnt[i] = deg;
+        if imm_win {
+            val[i] = WIN;
+            q.push_back(i as u64);
+        } else if deg == 0 {
+            val[i] = LOSS;
+            q.push_back(i as u64);
+        }
+    }
+
+    // propagate backward
+    while let Some(qi) = q.pop_front() {
+        let qpos = rk.unrank(qi);
+        let qv = val[qi as usize];
+        for p in predecessors(&qpos) {
+            let pi = rk.rank(&p) as usize;
+            if val[pi] != UNK {
+                continue;
+            }
+            if qv == LOSS {
+                val[pi] = WIN; // a move to a Loss => Win
+                q.push_back(pi as u64);
+            } else {
+                cnt[pi] = cnt[pi].saturating_sub(1);
+                if cnt[pi] == 0 {
+                    val[pi] = LOSS; // all children Win => Loss
+                    q.push_back(pi as u64);
+                }
+            }
+        }
+    }
+
+    let (mut w, mut l, mut d) = (0u64, 0u64, 0u64);
+    for i in 0..n {
+        if !legal[i] {
             continue;
         }
         match val[i] {

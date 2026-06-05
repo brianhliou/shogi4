@@ -188,6 +188,17 @@ It reproduces the oracle's W/L/D exactly on the subgames (`{2K}`, `{2K+P/F/R}`).
 from the full solve is now only (a) un-move generation + push (efficiency) and (b) external-memory
 backing — not correctness. **[measured — solver/src/bin/flat_check.rs]**
 
+**Un-move generation + push-based retrograde — the full scalable algorithm, validated in RAM.**
+`predecessors(q)` reverses each forward-move shape (board move, capture, promotion, drop, jump) and
+**verifies every candidate by running `make` forward** — so correctness rides on the validated
+engine. It equals the true reverse edges exactly on the subgames (`pred_check`). `solve_push`
+(counter-BFS over the rank array via `predecessors` — no stored graph, no pull rescan) reproduces
+the oracle's W/L/D to the unit on **all** subgames, including the **1.16M-position `{2K+carp+fox}`**
+(W 867,856 / L 206,964 / D 89,884, 7.7 s) that the pull solver could not finish. The complete
+external-memory algorithm now runs and is validated in RAM. **Only the external-memory backing
+(sharding the flat array onto NVMe) and the rung-4 spend remain — not correctness.**
+**[measured — solver/src/bin/push_check.rs]**
+
 **Cost calibration:** the 2-piece subgame runs at ~286k edges/s in pure Python (1 core). The full
 solve is ~4×10¹⁴ edge-ops (≈3×10¹³ positions × ~13 branching), so Python would take *decades* — but
 Rust at ~150 ns/edge (the Dōbutsu solver's measured RAM-speed) puts it at **~2–6 core-years**, i.e.
