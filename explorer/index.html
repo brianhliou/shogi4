@@ -75,7 +75,7 @@
   .chip.ghost { opacity:.28; cursor:default; }
   .chip.sel .chip-svg { outline:3px solid rgba(217,138,43,.65); }
   .chip-svg { display:block; width:clamp(38px, 7.4vh, 54px); height:clamp(38px, 7.4vh, 54px);
-              pointer-events:none; border-radius:11px; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+              pointer-events:none; border-radius:11px; }
   .cnt { position:absolute; right:-6px; bottom:-9px; min-width:22px; height:21px; padding:0 5px;
          display:flex; align-items:center; justify-content:center; background:#fff; color:#2c2f35;
          border:1.5px solid #d8d2c4; border-radius:999px; font-size:.8rem; font-weight:800; line-height:1;
@@ -275,7 +275,7 @@ function pieceTile(cxp, cyp, letter, owner, ghost) {
   // second player's tiles rotate 180° so the painted move-marks point forward for that side
   const rot = owner === "gote" ? ` transform="rotate(180 ${cxp.toFixed(1)} ${cyp.toFixed(1)})"` : "";
   return `<image class="pc" href="${pieceSrc(letter, owner)}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" `
-       + `width="${G.toFixed(1)}" height="${G.toFixed(1)}"${rot} filter="url(#psh)"${ghost ? ` opacity="0.5"` : ``}/>`;
+       + `width="${G.toFixed(1)}" height="${G.toFixed(1)}"${rot}${ghost ? ` opacity="0.5"` : ``}/>`;
 }
 function chipSVG(letter, owner) {
   return `<svg class="chip-svg" viewBox="0 0 32 32"><image href="${pieceSrc(letter, owner)}" x="0" y="0" width="32" height="32"/></svg>`;
@@ -294,11 +294,10 @@ function arrow(from, to) {
 
 function defs() {
   return `<defs>
-    <filter id="psh" x="-15%" y="-12%" width="130%" height="132%">
-      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.22"/></filter>
     <filter id="bsh" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity="0.18"/></filter>
     <clipPath id="bclip"><rect x="${MX}" y="${MY}" width="${4*CELL}" height="${4*CELL}" rx="9"/></clipPath>
+    <clipPath id="bclipin"><rect x="${MX+1.5}" y="${MY+1.5}" width="${4*CELL-3}" height="${4*CELL-3}" rx="7.5"/></clipPath>
   </defs>`;
 }
 
@@ -327,46 +326,37 @@ function renderBoard(parsed) {
   for (let r = 1; r <= 4; r++)
     s += `<text x="${MX-13}" y="${cyr(r)+5}" font-size="13" text-anchor="middle" fill="#9a8a62" font-weight="700">${r}</text>`;
 
-  // last-move tint — behind the tiles, so it shows on the (empty) source square
+  // last-move + selection highlights — on the board TILES, behind the pieces, so the
+  // tile glows around the (opaque) animal card rather than tinting the card itself
   if (lastMove) for (const sq of [lastMove.from, lastMove.to]) if (sq)
-    s += `<rect x="${cellX(sq.c)}" y="${cellY(sq.r)}" width="${CELL}" height="${CELL}" fill="#f6d873" opacity="0.4"/>`;
+    s += `<rect x="${cellX(sq.c)}" y="${cellY(sq.r)}" width="${CELL}" height="${CELL}" fill="#f6d873" opacity="0.55" clip-path="url(#bclipin)"/>`;
+  if (selected && selected.kind === "board")
+    s += `<rect x="${cellX(selected.from.c)}" y="${cellY(selected.from.r)}" width="${CELL}" height="${CELL}" fill="var(--accent)" opacity="0.34" clip-path="url(#bclipin)"/>`;
 
-  // pieces (the dragged one is lifted off) — opaque tiles, so markers go on top
+  // pieces (the dragged one is lifted off)
   for (const p of parsed.cells) {
     if (lift && selected && selected.kind === "board"
         && p.c === selected.from.c && p.r === selected.from.r) continue;
     s += pieceTile(cx(p.c), cyr(p.r), p.piece, p.owner);
   }
 
-  // last-move outline — on top, so the destination tile is clearly flagged
-  if (lastMove) for (const sq of [lastMove.from, lastMove.to]) if (sq)
-    s += `<rect x="${cellX(sq.c)+2}" y="${cellY(sq.r)+2}" width="${CELL-4}" height="${CELL-4}" rx="6" fill="none" stroke="#eaa61f" stroke-width="3" opacity="0.9"/>`;
-
-  // selected piece outline
-  if (selected && selected.kind === "board")
-    s += `<rect x="${cellX(selected.from.c)+2}" y="${cellY(selected.from.r)+2}" width="${CELL-4}" height="${CELL-4}" rx="6" fill="none" stroke="var(--accent)" stroke-width="4.5"/>`;
-
-  // legal-destination markers (on top of the tiles)
+  // legal-destination markers — a small dot for an empty square, a thin ring for a capture
   for (const t of targets) {
     if (occ[t.c + "," + t.r])
-      s += `<rect x="${cellX(t.c)+2}" y="${cellY(t.r)+2}" width="${CELL-4}" height="${CELL-4}" rx="6" fill="none" stroke="var(--cap)" stroke-width="4.5" opacity="0.85"/>`;
+      s += `<circle cx="${cx(t.c)}" cy="${cyr(t.r)}" r="${CELL*0.44}" fill="none" stroke="var(--cap)" stroke-width="2.5" opacity="0.8"/>`;
     else
-      s += `<circle cx="${cx(t.c)}" cy="${cyr(t.r)}" r="${CELL*0.16}" fill="var(--move)" opacity="0.8"/>`;
+      s += `<circle cx="${cx(t.c)}" cy="${cyr(t.r)}" r="${CELL*0.15}" fill="var(--move)" opacity="0.8"/>`;
   }
 
-  // hover ring
+  // hover ring (thin)
   if (hoverTo)
-    s += `<rect x="${cellX(hoverTo.c)+1.5}" y="${cellY(hoverTo.r)+1.5}" width="${CELL-3}" height="${CELL-3}" rx="5" fill="none" stroke="var(--accent)" stroke-width="3"/>`;
+    s += `<rect x="${cellX(hoverTo.c)+1.5}" y="${cellY(hoverTo.r)+1.5}" width="${CELL-3}" height="${CELL-3}" rx="5" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
 
-  // hovered-move preview: arrow for a board move, ghost tile for a drop
+  // hovered-move preview: an arrow for a board move, a ghost tile for a drop
   if (hoverMove) {
     const to = hoverMove.to;
-    if (hoverMove.from) {
-      s += `<rect x="${cellX(to.c)+2}" y="${cellY(to.r)+2}" width="${CELL-4}" height="${CELL-4}" rx="6" fill="none" stroke="#e08220" stroke-width="3" opacity="0.85"/>`;
-      s += arrow(hoverMove.from, to);
-    } else {
-      s += pieceTile(cx(to.c), cyr(to.r), hoverMove.piece, parsed.side, true);
-    }
+    if (hoverMove.from) s += arrow(hoverMove.from, to);
+    else s += pieceTile(cx(to.c), cyr(to.r), hoverMove.piece, parsed.side, true);
   }
 
   // floating dragged piece
