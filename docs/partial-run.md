@@ -1,10 +1,36 @@
-# Partial run — runbook (prepared, not yet executed)
+# Partial run — runbook
 
 A one-off rented-box solve of the largest meaningful sub-game, to turn the
 51.5M laptop ceiling into a **billions-scale** headline number and a real-hardware
 ns/edge for the cost model. Single machine, single thread, no distributed moving
-parts — the cheapest credible result upgrade. **Status: prepared. Do not run until
-you decide to proceed.**
+parts — the cheapest credible result upgrade.
+
+**Status: first run executing 2026-06-06**, Hetzner CCX43 (Ubuntu 26.04, 16 vCPU /
+64 GB), single-threaded — the validated, zero-concurrency-risk baseline. Init ~39 min
+@ ~1.5M pos/s; peak RSS ~15 GB (`u32` queue). Final W/L/D + real-hardware ns/edge get
+folded into `findings.md` on completion.
+
+## Before the next run — parallelize first
+
+The single-threaded run used **1 of 16 cores** (the box was sized for the 64 GB,
+not the cores — they came bundled). That's the right call for a *one-off* you want
+correct on the first try, but **any next run gets parallelized first** — don't start
+another multi-hour solve on one core.
+
+- **Init pass — embarrassingly parallel, do it.** Every position is independent
+  (unrank → is_legal → count children → seed terminals). `rayon` over the rank
+  range is near-linear: ~39 min → ~4–5 min. Low risk; the per-position work is pure.
+- **Propagation — use the validated sharded BSP solver, not the sequential one.**
+  The design is already built and de-risked (`sharded_check` confluence,
+  `failrec_check` crash-replay). Wire *that* into the production runner instead of
+  the single-`VecDeque` loop in `solve_push_array`.
+- **Don't expect 16×.** Propagation is **memory-latency bound** — each pop is a
+  random `rank()`/array touch into a multi-GB working set, so you saturate memory
+  bandwidth well before core count. Realistic overall speedup ~4–8×. The bigger
+  full-solve wins are footprint/locality (2-bit packing, compression, mmap — the
+  rung-4 optimizations from `../micro-shogi`), not just more threads.
+- **Baseline to beat:** this run's single-threaded wall-clock + ns/edge is the
+  reference the parallel version's speedup gets measured against.
 
 ## Target
 
