@@ -115,7 +115,9 @@ These are why the Dōbutsu solver must be re-derived, not re-pointed.
   branching × ~2 passes × 150–500 ns/edge). A push-based retrograde must move-gen *every* slot once
   just to count children (~6×10¹⁵ edge-ops, ~30–90 cy) before any propagation, so reachable-only
   compute (~3×10¹³) is not achievable. The earlier "~5–16 core-years" was reachable-based and is
-  superseded.
+  superseded. **The 2.10B partial (below) now anchors the per-edge cost at ~700 ns/edge on real
+  hardware at out-of-cache scale**, landing this in the upper half (~130–190 core-years
+  single-threaded; the validated parallel/sharded design cuts wall-clock, not core-years).
 - **Cost — CORRECTED: ~$5–15k bare-metal (~$15–50k cloud), ~50 TB NVMe, weeks–months.** A serious
   NVMe machine or a small cluster — *not* "one small box, days." This is **Micro-Shogi-cost-class**;
   Shogi4 stays the cheaper rung (~19× smaller arrangement domain than Micro), and since Micro's own
@@ -206,24 +208,29 @@ external-memory algorithm now runs and is validated in RAM. **Only the external-
 was also optimized (direct single-move legality check instead of full move-gen). **[measured —
 solver/src/bin/lr_check.rs]**
 
-**Calibration ladder — the push solver scaled to 51.5M positions in RAM.** Largest in-RAM solve;
-all match the oracle's logic (validated at ≤1.16M; the 51.5M is a new result):
+**Calibration ladder — the push solver scaled from 1.16M (laptop) to 2.10B (rented box).**
+All match the oracle's logic (validated at ≤1.16M; the larger rungs are new results):
 
-| subgame | legal positions | time | ns/edge | W / L / D |
-|---|---|---|---|---|
-| `{2K+P+F}` | 1,164,704 | 4.6 s | ~327 | 74.5 / 17.8 / 7.7 % |
-| `{2K+P+F+R}` | **51,461,568** | 304 s | **~493** | 80.3 / 18.9 / 0.8 % |
+| subgame | legal positions | time | ns/edge | W / L / D | where |
+|---|---|---|---|---|---|
+| `{2K+P+F}` | 1,164,704 | 4.6 s | ~327 | 74.5 / 17.8 / 7.7 % | laptop |
+| `{2K+P+F+R}` | 51,461,568 | 304 s | ~493 | 80.3 / 18.9 / 0.8 % | laptop |
+| `{2K+P+F+R+T}` | **2,100,849,024** | **19,033 s** | **~697** | **79.15 / 16.16 / 4.69 %** | Hetzner CCX43 |
 
-(ns/edge after a compile-time binomial-table optimization that cut the `rank`/`unrank` per-edge cost
-~17–22%; was 396 → 633.) These are reduced games, for validation + calibration, not the headline
-value. **The key signal: `ns/edge` *rises* with working-set size** (327 → 493 as the value arrays
-grow past cache) — the cost model's external-memory risk, empirically. **Cross-check with
+(Laptop ns/edge after a compile-time binomial-table optimization that cut the `rank`/`unrank`
+per-edge cost ~17–22%; was 396 → 633.) These are reduced games, for validation + calibration. **The
+key signal — `ns/edge` *rises* with working-set size, now confirmed at scale: 327 → 493 → ~697** as
+the value arrays grow from cache-resident (MB) to ~14 GB. The 2.10B run is the first point big enough
+to leave cache entirely, so **~700 ns/edge — not the 493 laptop figure — is the reliable anchor for
+projecting the ~4×10¹⁴ full solve** (a ~1.4× upward correction to the cost model). **Cross-check with
 `../micro-shogi`:** its HashMap solver measured **167 ns** on a small game, but our solver pays the
-**rank-index combinatorial cost per edge** (the price of the only index that scales). So the rung-4
-cost model should use **~330–490 ns — the rank-based reality, not the 167 ns HashMap floor** —
-placing compute in the **middle** of ~60–190 core-years, with the exact-2× LR fold and further
-`rank`/`unrank` tuning as levers. `{2K + one of each type}` (3.5B) is laptop-infeasible — the in-RAM
-ceiling is ~50–75M. **[measured — solver/src/bin/scale.rs]**
+**rank-index combinatorial cost per edge** (the price of the only index that scales) — and that cost
+*grows* out of cache, the opposite of a HashMap floor. `{2K + one of each type}` (3.52B rank domain,
+**2.10B legal**) **is now solved** — single-threaded, **5.3 hr**, peak RSS ~15 GB on a 64 GB box (the
+`u32` work queue keeps it lean); the billions-scale result the laptop's ~50–75M ceiling couldn't
+reach, and the artifact a co-author outreach leads with. First-player (sente) win rate holds ~79%
+across the ladder. Raw output: `research/partial-run-{result.txt,progress.log}`. **[measured —
+solver/src/bin/partial.rs · Hetzner CCX43, Ubuntu 26.04, 2026-06-06]**
 
 **Relationship to `../micro-shogi` (the bigger rung, now paused).** Micro Shogi's own session
 independently recommended solving 4×4 *first* as the de-risk, and its production-architecture
@@ -270,11 +277,13 @@ breaking bit-exact checkpoints. Fixed by sorting `predecessors`, which makes the
 checkpoint + a deterministic recompute" is now a demonstrated property, not an assumption.
 **[measured — solver/src/bin/failrec_check.rs]**
 
-**Cost calibration:** the 2-piece subgame runs at ~286k edges/s in pure Python (1 core). The full
-solve is ~4×10¹⁴ edge-ops (≈3×10¹³ positions × ~13 branching), so Python would take *decades* — but
-Rust at ~150 ns/edge (the Dōbutsu solver's measured RAM-speed) puts it at **~2–6 core-years**, i.e.
-days–weeks on a many-core NVMe box. Empirical basis for the "external-memory, single high-memory/NVMe
-machine" regime, consistent with the ~8 TB table. **[measured + estimate]**
+**Cost calibration [SUPERSEDED — original reachable-based estimate, kept for the record].** The
+2-piece subgame runs at ~286k edges/s in pure Python (1 core). The full solve is ~4×10¹⁴ edge-ops
+(≈3×10¹³ positions × ~13 branching), so Python would take *decades* — but Rust at ~150 ns/edge (the
+Dōbutsu solver's measured RAM-speed) puts it at ~2–6 core-years. **This is superseded twice over:**
+(a) the index is the ~4.1×10¹⁴ rank domain, not reachable (~13× more slots); (b) the measured at-scale
+cost is **~700 ns/edge, not 150** — the 150 figure was a cache-resident HashMap speed. See the
+corrected rank-domain compute (~130–190 cy) and the calibration ladder above. **[superseded]**
 
 ## Sources
 

@@ -1,0 +1,7 @@
+=== partial solve: {2 kings + PTRF}  (rank domain N = 3523223040) ===
+(set SHOGI4_PROGRESS=1 for live progress on stderr)
+legal positions : 2100849024
+time            : 19033 s
+throughput      : 110k pos/s   (~697 ns/edge, est @ b~13)
+result          : W 79.15%  L 16.16%  D 4.69%
+                  (W 1662776212  L 339566116  D 98506696)

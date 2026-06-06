@@ -5,10 +5,11 @@ A one-off rented-box solve of the largest meaningful sub-game, to turn the
 ns/edge for the cost model. Single machine, single thread, no distributed moving
 parts — the cheapest credible result upgrade.
 
-**Status: first run executing 2026-06-06**, Hetzner CCX43 (Ubuntu 26.04, 16 vCPU /
-64 GB), single-threaded — the validated, zero-concurrency-risk baseline. Init ~39 min
-@ ~1.5M pos/s; peak RSS ~15 GB (`u32` queue). Final W/L/D + real-hardware ns/edge get
-folded into `findings.md` on completion.
+**Status: DONE — first run executed 2026-06-06**, Hetzner CCX43 (Ubuntu 26.04, 16 vCPU /
+64 GB), single-threaded baseline (zero concurrency risk). **2,100,849,024 legal positions;
+W 79.15 / L 16.16 / D 4.69 %; 5.29 hr wall; ~697 ns/edge at scale; peak RSS ~15 GB** (`u32`
+queue). EXIT=0, W+L+D reconciles to the unit. Numbers folded into `findings.md`; raw output in
+`research/partial-run-{result.txt,progress.log}`.
 
 ## Before the next run — parallelize first
 
