@@ -2,12 +2,12 @@
 
 *Brian Liou · June 2026*
 
-Drop-shogi is the live frontier of strongly-solved games. Dōbutsu Shōgi (3×4) is the largest one solved — Tanaka strongly solved it in 2009. I reproduced that solution from scratch and validated it position-by-position against `clausecker/dobutsu`, then built and validated the **complete strong-solution engine for the next rung up, Shogi4** (a public-domain 4×4 drop-shogi), and de-risked its full distributed solve to the point where only the compute run remains. The rung after that, Micro Shogi (4×5), is open.
+Drop-shogi is the live frontier of strongly-solved games. Dōbutsu Shōgi (3×4) is the largest one solved — Tanaka strongly solved it in 2009. I reproduced that solution from scratch and validated it position-by-position against `clausecker/dobutsu`, then built and validated the **complete strong-solution engine for the next rung up, Shogi4** (a public-domain 4×4 drop-shogi), ran it at billions of positions on rented hardware, and de-risked the full distributed solve to the point where only the compute run remains. The rung after that, Micro Shogi (4×5), is open.
 
 | Game | Board | Reachable positions | Status |
 |---|---|---|---|
 | Dōbutsu Shōgi | 3×4 | 2.47×10⁸ | solved 2009 (Tanaka); reproduced + validated vs `clausecker/dobutsu` |
-| **Shogi4** | **4×4** | **~3×10¹³** | **engine complete + oracle-validated; 51.5M partial solve; full run calibrated** |
+| **Shogi4** | **4×4** | **~3×10¹³** | **engine complete + oracle-validated; 2.1-billion-position partial solve; full run calibrated** |
 | Micro Shogi | 4×5 | ~5×10¹⁴ | open frontier |
 
 ## Why drop-shogi is the interesting regime
@@ -28,7 +28,7 @@ Shogi4 has never been solved — no published game value exists. It's public dom
 
 **The numbers.** The all-arrangements upper bound is **205,148,532,253,680** — exact, computed by an enumerator that reproduces Tanaka's published Dōbutsu figure (`1,567,925,964`) and its full breakdown to the digit. Reachable from the start is ~3×10¹³.
 
-**A 51-million-position partial solve.** The largest in-RAM solve to date — a 51,461,568-position sub-game — solved and consistency-audited (W 80.3% / L 18.9% / D 0.8%).
+**A 2.1-billion-position partial solve.** A 2,100,849,024-position sub-game — the two kings plus one of each piece type — solved on a single rented box in 5.3 hours: **W 79.15% / L 16.16% / D 4.69%**, with win/loss/draw counts reconciling to the unit. Two orders of magnitude past the in-RAM laptop ceiling, and the largest Shogi4 result computed to date.
 
 ## The full solve, de-risked for $0
 
@@ -37,11 +37,11 @@ The complete solve is an external-memory, sharded, push-based retrograde over a 
 - **Confluence.** The sharded BSP solver reproduces the oracle's result for *every* shard count (1, 4, 16, 64). Parallelization cannot change the answer — the algorithm is a monotone, order-independent fixpoint.
 - **Cheap verification.** A single-pass consistency audit (every value must be the minimax of its children) certifies the tablebase at **~55% of the solve cost**, and catches every injected corruption. A wrong value fails its own local check, so silent corruption can't pass.
 - **Failure recovery.** Crash plus deterministic replay reproduces each superstep byte-for-byte and yields a result identical to the crash-free run. Building this surfaced and fixed a latent nondeterminism, making the whole solver reproducible — "a shard is a checkpoint plus a deterministic recompute."
-- **Calibration.** A 51.5M-position run measured per-edge cost rising from 396 to 633 ns as the working set grew past cache, which is the external-memory cost risk appearing in data rather than in a guess.
+- **Calibration.** Per-edge cost rises with working-set size — measured 327 → 493 → ~697 ns across runs of 1.2M, 51M, and 2.1B positions. The 2.1B run is the first whose ~14 GB value arrays leave cache entirely, so its ~700 ns/edge anchors the full-solve projection on out-of-cache data. It's the external-memory cost risk, measured rather than assumed.
 
 ## Cost, staged and self-corrected
 
-The full Shogi4 solve is ~50–100 TB and ~60–190 core-years (≈$5–15k bare-metal), with an exact 2× left–right symmetry fold (proven, not assumed). I corrected my own cost estimate twice during this work: first an order-of-magnitude error in the raw state-space count, then the realization that a dense-rank solver's footprint is the *arrangement domain*, not the reachable count (~13× larger). Both corrections sit in the record. The plan is gated: a ~$40 partial-bucket run calibrates the real per-edge cost on the target architecture before any large commit, and the SCC staging plus per-bucket audits mean cost and correctness surprises surface on cheap, early buckets — not after a multi-week run.
+The full Shogi4 solve is ~50–100 TB and ~130–190 core-years (≈$5–15k bare-metal), with an exact 2× left–right symmetry fold (proven, not assumed). The per-edge cost underlying that range is now measured on real hardware at out-of-cache scale (~700 ns), so the core-year figure is anchored rather than extrapolated from a cache-resident benchmark. I corrected my own cost estimate twice during this work: first an order-of-magnitude error in the raw state-space count, then the realization that a dense-rank solver's footprint is the *arrangement domain*, not the reachable count (~13× larger). Both corrections sit in the record. The plan is gated: a ~$40 partial-bucket run calibrates the real per-edge cost on the target architecture before any large commit, and the SCC staging plus per-bucket audits mean cost and correctness surprises surface on cheap, early buckets — not after a multi-week run.
 
 The same ladder continues to Micro Shogi (~19× larger, the open frontier), whose published estimates I've corrected the same way.
 
