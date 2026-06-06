@@ -64,7 +64,7 @@ fn dirs(a: u8) -> &'static [(i8, i8)] {
 #[inline] fn row(s: usize) -> i8 { (s / 4) as i8 + 1 }
 #[inline] fn on(c: i8, r: i8) -> bool { (1..=4).contains(&c) && (1..=4).contains(&r) }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Pos {
     pub board: [u8; 16],    // 0 empty, else packed cell
     pub hands: [[u8; 4]; 2], // [owner][base_slot]
@@ -511,8 +511,6 @@ fn enum_type_comps(c: u8) -> Vec<[u8; 6]> {
 
 pub struct Ranker {
     types: Vec<u8>,
-    nsym: usize,
-    type_comps: Vec<Vec<[u8; 6]>>,
     type_idx: Vec<HashMap<[u8; 6], u32>>,
     radix: Vec<u64>, // mixed-radix weight per type for the composition index
     base: Vec<u64>,  // prefix sums of multinom per composition (within one stm)
@@ -565,7 +563,7 @@ impl Ranker {
             board_counts.push(bc);
             hands.push(h);
         }
-        Ranker { types: types.to_vec(), nsym, type_comps, type_idx, radix, base, board_counts, hands, s_total: running }
+        Ranker { types: types.to_vec(), type_idx, radix, base, board_counts, hands, s_total: running }
     }
 
     pub fn size(&self) -> u64 {
