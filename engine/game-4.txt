@@ -1,0 +1,450 @@
+=== Shogi4 self-play (4000ms/move, 3 competitive opening plies, eval window 40cp) ===
+
+        black hand: -
+     4  t  r  f  k
+     3  .  .  .  p
+     2  P  .  .  .
+     1  K  F  R  T
+        a  b  c  d        white hand: -
+
+--- ply   1  White d1c2    eval (opening) (d0)
+        black hand: -
+     4  t  r  f  k
+     3  .  .  .  p
+     2  P  .  T  .
+     1  K  F  R  .
+        a  b  c  d        white hand: -
+
+--- ply   2  Black c4c3    eval (opening) (d0)
+        black hand: -
+     4  t  r  .  k
+     3  .  .  f  p
+     2  P  .  T  .
+     1  K  F  R  .
+        a  b  c  d        white hand: -
+
+--- ply   3  White c2c3    eval (opening) (d0)  [CAPTURE]
+        black hand: -
+     4  t  r  .  k
+     3  .  .  T  p
+     2  P  .  .  .
+     1  K  F  R  .
+        a  b  c  d        white hand: Fx1
+
+--- ply   4  Black b4c3    eval  -1.30 (d33)  [CAPTURE]
+        black hand: Tx1
+     4  t  .  .  k
+     3  .  .  r  p
+     2  P  .  .  .
+     1  K  F  R  .
+        a  b  c  d        white hand: Fx1
+
+--- ply   5  White F@c2    eval  +2.08 (d33)  [drop]
+        black hand: Tx1
+     4  t  .  .  k
+     3  .  .  r  p
+     2  P  .  F  .
+     1  K  F  R  .
+        a  b  c  d        white hand: -
+
+--- ply   6  Black T@c4    eval  -2.40 (d30)  [drop]
+        black hand: -
+     4  t  .  t  k
+     3  .  .  r  p
+     2  P  .  F  .
+     1  K  F  R  .
+        a  b  c  d        white hand: -
+
+--- ply   7  White c2c3    eval  +2.51 (d34)  [CAPTURE]
+        black hand: -
+     4  t  .  t  k
+     3  .  .  F  p
+     2  P  .  .  .
+     1  K  F  R  .
+        a  b  c  d        white hand: Rx1
+
+--- ply   8  Black c4c3    eval  -2.40 (d33)  [CAPTURE]
+        black hand: Fx1
+     4  t  .  .  k
+     3  .  .  t  p
+     2  P  .  .  .
+     1  K  F  R  .
+        a  b  c  d        white hand: Rx1
+
+--- ply   9  White R@b2    eval  +3.00 (d30)  [drop]
+        black hand: Fx1
+     4  t  .  .  k
+     3  .  .  t  p
+     2  P  R  .  .
+     1  K  F  R  .
+        a  b  c  d        white hand: -
+
+--- ply  10  Black c3b2    eval  -3.24 (d29)  [CAPTURE]
+        black hand: Rx1 Fx1
+     4  t  .  .  k
+     3  .  .  .  p
+     2  P  t  .  .
+     1  K  F  R  .
+        a  b  c  d        white hand: -
+
+--- ply  11  White b1b2    eval  +2.96 (d31)  [CAPTURE]
+        black hand: Rx1 Fx1
+     4  t  .  .  k
+     3  .  .  .  p
+     2  P  F  .  .
+     1  K  .  R  .
+        a  b  c  d        white hand: Tx1
+
+--- ply  12  Black F@c3    eval  -3.20 (d28)  [drop]
+        black hand: Rx1
+     4  t  .  .  k
+     3  .  .  f  p
+     2  P  F  .  .
+     1  K  .  R  .
+        a  b  c  d        white hand: Tx1
+
+--- ply  13  White a2a3    eval  +3.40 (d31)
+        black hand: Rx1
+     4  t  .  .  k
+     3  P  .  f  p
+     2  .  F  .  .
+     1  K  .  R  .
+        a  b  c  d        white hand: Tx1
+
+--- ply  14  Black a4a3    eval  -4.01 (d30)  [CAPTURE]
+        black hand: Px1 Rx1
+     4  .  .  .  k
+     3  t  .  f  p
+     2  .  F  .  .
+     1  K  .  R  .
+        a  b  c  d        white hand: Tx1
+
+--- ply  15  White c1a3    eval  +4.12 (d29)  [CAPTURE]
+        black hand: Px1 Rx1
+     4  .  .  .  k
+     3  R  .  f  p
+     2  .  F  .  .
+     1  K  .  .  .
+        a  b  c  d        white hand: Tx2
+
+--- ply  16  Black R@d2    eval  -4.36 (d27)  [drop]
+        black hand: Px1
+     4  .  .  .  k
+     3  R  .  f  p
+     2  .  F  .  r
+     1  K  .  .  .
+        a  b  c  d        white hand: Tx2
+
+--- ply  17  White T@c1    eval  +4.68 (d29)  [drop]
+        black hand: Px1
+     4  .  .  .  k
+     3  R  .  f  p
+     2  .  F  .  r
+     1  K  .  T  .
+        a  b  c  d        white hand: Tx1
+
+--- ply  18  Black d2c1+   eval  -4.50 (d28)  [promo CAPTURE]
+        black hand: Px1 Tx1
+     4  .  .  .  k
+     3  R  .  f  p
+     2  .  F  .  .
+     1  K  .  n  .
+        a  b  c  d        white hand: Tx1
+
+--- ply  19  White a3c1    eval  +3.06 (d29)  [CAPTURE]
+        black hand: Px1 Tx1
+     4  .  .  .  k
+     3  .  .  f  p
+     2  .  F  .  .
+     1  K  .  R  .
+        a  b  c  d        white hand: Tx1 Rx1
+
+--- ply  20  Black T@b4    eval  -2.87 (d27)  [drop]
+        black hand: Px1
+     4  .  t  .  k
+     3  .  .  f  p
+     2  .  F  .  .
+     1  K  .  R  .
+        a  b  c  d        white hand: Tx1 Rx1
+
+--- ply  21  White T@b1    eval  +5.16 (d28)  [drop]
+        black hand: Px1
+     4  .  t  .  k
+     3  .  .  f  p
+     2  .  F  .  .
+     1  K  T  R  .
+        a  b  c  d        white hand: Rx1
+
+--- ply  22  Black P@b3    eval  -5.76 (d25)  [drop]
+        black hand: -
+     4  .  t  .  k
+     3  .  p  f  p
+     2  .  F  .  .
+     1  K  T  R  .
+        a  b  c  d        white hand: Rx1
+
+--- ply  23  White b2a2    eval  +5.98 (d25)
+        black hand: -
+     4  .  t  .  k
+     3  .  p  f  p
+     2  F  .  .  .
+     1  K  T  R  .
+        a  b  c  d        white hand: Rx1
+
+--- ply  24  Black c3c4    eval  -5.47 (d25)
+        black hand: -
+     4  .  t  f  k
+     3  .  p  .  p
+     2  F  .  .  .
+     1  K  T  R  .
+        a  b  c  d        white hand: Rx1
+
+--- ply  25  White R@a3    eval  +8.74 (d26)  [drop]
+        black hand: -
+     4  .  t  f  k
+     3  R  p  .  p
+     2  F  .  .  .
+     1  K  T  R  .
+        a  b  c  d        white hand: -
+
+--- ply  26  Black b4c3    eval  -7.85 (d25)
+        black hand: -
+     4  .  .  f  k
+     3  R  p  t  p
+     2  F  .  .  .
+     1  K  T  R  .
+        a  b  c  d        white hand: -
+
+--- ply  27  White a2a4+   eval  +8.91 (d28)  [promo]
+        black hand: -
+     4  G  .  f  k
+     3  R  p  t  p
+     2  .  .  .  .
+     1  K  T  R  .
+        a  b  c  d        white hand: -
+
+--- ply  28  Black d3d2    eval  -9.00 (d26)
+        black hand: -
+     4  G  .  f  k
+     3  R  p  t  .
+     2  .  .  .  p
+     1  K  T  R  .
+        a  b  c  d        white hand: -
+
+--- ply  29  White c1d2    eval  +8.00 (d28)  [CAPTURE]
+        black hand: -
+     4  G  .  f  k
+     3  R  p  t  .
+     2  .  .  .  R
+     1  K  T  .  .
+        a  b  c  d        white hand: Px1
+
+--- ply  30  Black c3d2    eval -13.46 (d26)  [CAPTURE]
+        black hand: Rx1
+     4  G  .  f  k
+     3  R  p  .  .
+     2  .  .  .  t
+     1  K  T  .  .
+        a  b  c  d        white hand: Px1
+
+--- ply  31  White b1c2    eval    #18 (d47)
+        black hand: Rx1
+     4  G  .  f  k
+     3  R  p  .  .
+     2  .  .  T  t
+     1  K  .  .  .
+        a  b  c  d        white hand: Px1
+
+--- ply  32  Black c4c3    eval   #-17 (d43)
+        black hand: Rx1
+     4  G  .  .  k
+     3  R  p  f  .
+     2  .  .  T  t
+     1  K  .  .  .
+        a  b  c  d        white hand: Px1
+
+--- ply  33  White c2c3    eval    #16 (d45)  [CAPTURE]
+        black hand: Rx1
+     4  G  .  .  k
+     3  R  p  T  .
+     2  .  .  .  t
+     1  K  .  .  .
+        a  b  c  d        white hand: Px1 Fx1
+
+--- ply  34  Black d4c3    eval   #-15 (d47)  [CAPTURE]
+        black hand: Tx1 Rx1
+     4  G  .  .  .
+     3  R  p  k  .
+     2  .  .  .  t
+     1  K  .  .  .
+        a  b  c  d        white hand: Px1 Fx1
+
+--- ply  35  White P@b2    eval    #14 (d45)  [drop]
+        black hand: Tx1 Rx1
+     4  G  .  .  .
+     3  R  p  k  .
+     2  .  P  .  t
+     1  K  .  .  .
+        a  b  c  d        white hand: Fx1
+
+--- ply  36  Black c3d4    eval   #-13 (d46)
+        black hand: Tx1 Rx1
+     4  G  .  .  k
+     3  R  p  .  .
+     2  .  P  .  t
+     1  K  .  .  .
+        a  b  c  d        white hand: Fx1
+
+--- ply  37  White F@c3    eval    #13 (d45)  [drop]
+        black hand: Tx1 Rx1
+     4  G  .  .  k
+     3  R  p  F  .
+     2  .  P  .  t
+     1  K  .  .  .
+        a  b  c  d        white hand: -
+
+--- ply  38  Black T@c4    eval   #-12 (d46)  [drop]
+        black hand: Rx1
+     4  G  .  t  k
+     3  R  p  F  .
+     2  .  P  .  t
+     1  K  .  .  .
+        a  b  c  d        white hand: -
+
+--- ply  39  White c3c4+   eval    #11 (d51)  [promo CAPTURE]
+        black hand: Rx1
+     4  G  .  G  k
+     3  R  p  .  .
+     2  .  P  .  t
+     1  K  .  .  .
+        a  b  c  d        white hand: Tx1
+
+--- ply  40  Black d4c4    eval   #-10 (d52)  [CAPTURE]
+        black hand: Rx1 Fx1
+     4  G  .  k  .
+     3  R  p  .  .
+     2  .  P  .  t
+     1  K  .  .  .
+        a  b  c  d        white hand: Tx1
+
+--- ply  41  White T@c2    eval     #9 (d56)  [drop]
+        black hand: Rx1 Fx1
+     4  G  .  k  .
+     3  R  p  .  .
+     2  .  P  T  t
+     1  K  .  .  .
+        a  b  c  d        white hand: -
+
+--- ply  42  Black c4d4    eval    #-8 (d55)
+        black hand: Rx1 Fx1
+     4  G  .  .  k
+     3  R  p  .  .
+     2  .  P  T  t
+     1  K  .  .  .
+        a  b  c  d        white hand: -
+
+--- ply  43  White a4a2    eval     #7 (d59)
+        black hand: Rx1 Fx1
+     4  .  .  .  k
+     3  R  p  .  .
+     2  G  P  T  t
+     1  K  .  .  .
+        a  b  c  d        white hand: -
+
+--- ply  44  Black d2d1+   eval    #-6 (d64)  [promo]
+        black hand: Rx1 Fx1
+     4  .  .  .  k
+     3  R  p  .  .
+     2  G  P  T  .
+     1  K  .  .  b
+        a  b  c  d        white hand: -
+
+--- ply  45  White c2c3    eval     #6 (d84)
+        black hand: Rx1 Fx1
+     4  .  .  .  k
+     3  R  p  T  .
+     2  G  P  .  .
+     1  K  .  .  b
+        a  b  c  d        white hand: -
+
+--- ply  46  Black d4d3    eval    #-5 (d165)
+        black hand: Rx1 Fx1
+     4  .  .  .  .
+     3  R  p  T  k
+     2  G  P  .  .
+     1  K  .  .  b
+        a  b  c  d        white hand: -
+
+--- ply  47  White a2b3    eval     #5 (d238)  [CAPTURE]
+        black hand: Rx1 Fx1
+     4  .  .  .  .
+     3  R  G  T  k
+     2  .  P  .  .
+     1  K  .  .  b
+        a  b  c  d        white hand: Px1
+
+--- ply  48  Black d3c2    eval    #-4 (d245)
+        black hand: Rx1 Fx1
+     4  .  .  .  .
+     3  R  G  T  .
+     2  .  P  k  .
+     1  K  .  .  b
+        a  b  c  d        white hand: Px1
+
+--- ply  49  White P@c1    eval     #4 (d245)  [drop]
+        black hand: Rx1 Fx1
+     4  .  .  .  .
+     3  R  G  T  .
+     2  .  P  k  .
+     1  K  .  P  b
+        a  b  c  d        white hand: -
+
+--- ply  50  Black c2d2    eval    #-3 (d245)
+        black hand: Rx1 Fx1
+     4  .  .  .  .
+     3  R  G  T  .
+     2  .  P  .  k
+     1  K  .  P  b
+        a  b  c  d        white hand: -
+
+--- ply  51  White a3b4+   eval     #3 (d245)  [promo]
+        black hand: Rx1 Fx1
+     4  .  N  .  .
+     3  .  G  T  .
+     2  .  P  .  k
+     1  K  .  P  b
+        a  b  c  d        white hand: -
+
+--- ply  52  Black d2c1    eval    #-2 (d245)  [CAPTURE]
+        black hand: Px1 Rx1 Fx1
+     4  .  N  .  .
+     3  .  G  T  .
+     2  .  P  .  .
+     1  K  .  k  b
+        a  b  c  d        white hand: -
+
+--- ply  53  White b3b1    eval     #2 (d245)
+        black hand: Px1 Rx1 Fx1
+     4  .  N  .  .
+     3  .  .  T  .
+     2  .  P  .  .
+     1  K  G  k  b
+        a  b  c  d        white hand: -
+
+--- ply  54  Black d1c2    eval    #-1 (d245)
+        black hand: Px1 Rx1 Fx1
+     4  .  N  .  .
+     3  .  .  T  .
+     2  .  P  b  .
+     1  K  G  k  .
+        a  b  c  d        white hand: -
+
+--- ply  55  White b1c1    eval     #1 (d245)  [CAPTURE]
+        black hand: Px1 Rx1 Fx1
+     4  .  N  .  .
+     3  .  .  T  .
+     2  .  P  b  .
+     1  K  .  G  .
+        a  b  c  d        white hand: -
+
+=== WHITE WINS — king captured at ply 55 ===

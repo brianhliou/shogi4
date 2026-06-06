@@ -1,0 +1,101 @@
+diff --git a/src/parser.cpp b/src/parser.cpp
+index cbd2404..5038500 100644
+--- a/src/parser.cpp
++++ b/src/parser.cpp
+@@ -452,6 +452,7 @@ Variant* VariantParser<DoCheck>::parse(Variant* v) {
+     parse_attribute("castlingRookPiecesBlack", v->castlingRookPieces[BLACK], v->pieceToChar);
+     parse_attribute("oppositeCastling", v->oppositeCastling);
+     parse_attribute("checking", v->checking);
++    parse_attribute("friendlyJump", v->friendlyJump);
+     parse_attribute("dropChecks", v->dropChecks);
+     parse_attribute("mustCapture", v->mustCapture);
+     parse_attribute("mustDrop", v->mustDrop);
+diff --git a/src/position.h b/src/position.h
+index 685c079..a1e3f30 100644
+--- a/src/position.h
++++ b/src/position.h
+@@ -277,6 +277,7 @@ public:
+   Bitboard attackers_to(Square s, Bitboard occupied, Color c, Bitboard janggiCannons) const;
+   Bitboard attacks_from(Color c, PieceType pt, Square s) const;
+   Bitboard moves_from(Color c, PieceType pt, Square s) const;
++  Bitboard friendly_jumps(Color c, Square s, Bitboard steps) const;
+   Bitboard slider_blockers(Bitboard sliders, Square s, Bitboard& pinners, Color c) const;
+ 
+   // Properties of moves
+@@ -1272,6 +1273,27 @@ inline Square Position::castling_rook_square(CastlingRights cr) const {
+   return castlingRookSquare[cr];
+ }
+ 
++// Shogi4 friendly-jump: for each step direction in which an adjacent square holds a
++// friendly piece (a "screen"), the piece may leap to the square two steps out in that
++// same direction. Given the piece's base step bitboard, the screens are its step
++// squares that are occupied by a friendly piece, and each landing square is the
++// reflection of the origin through its screen, i.e. 2*screen - origin. This is only
++// sound for single-step leapers (all Shogi4 pieces), the only context it runs in.
++// Own-occupied / off-board landings are masked off by the callers (board_bb / target).
++inline Bitboard Position::friendly_jumps(Color c, Square s, Bitboard steps) const {
++  Bitboard jumps = 0;
++  Bitboard screens = steps & pieces(c);
++  while (screens)
++  {
++      Square m = pop_lsb(screens);
++      int f = 2 * file_of(m) - file_of(s);
++      int r = 2 * rank_of(m) - rank_of(s);
++      if (f >= FILE_A && f <= max_file() && r >= RANK_1 && r <= max_rank())
++          jumps |= square_bb(make_square(File(f), Rank(r)));
++  }
++  return jumps;
++}
++
+ inline Bitboard Position::attacks_from(Color c, PieceType pt, Square s) const {
+   if (var->fastAttacks || var->fastAttacks2)
+       return attacks_bb(c, pt, s, byTypeBB[ALL_PIECES]) & board_bb();
+@@ -1299,6 +1321,8 @@ inline Bitboard Position::attacks_from(Color c, PieceType pt, Square s) const {
+               & ~pieces(pt)
+               & diagonal_lines();
+   }
++  if (var->friendlyJump)
++      b |= friendly_jumps(c, s, b);
+   return b & board_bb(c, pt);
+ }
+ 
+@@ -1332,6 +1356,8 @@ inline Bitboard Position::moves_from(Color c, PieceType pt, Square s) const {
+               & ~pieces(pt)
+               & diagonal_lines();
+   }
++  if (var->friendlyJump)
++      b |= friendly_jumps(c, s, b);
+   return b & board_bb(c, pt);
+ }
+ 
+diff --git a/src/variant.cpp b/src/variant.cpp
+index e722d25..facbdea 100644
+--- a/src/variant.cpp
++++ b/src/variant.cpp
+@@ -2003,6 +2003,11 @@ Variant* Variant::conclude() {
+                   && !cambodianMoves
+                   && !diagonalLines;
+ 
++    // The friendly-jump rule is occupancy/color dependent, so it must go through
++    // the slow attacks_from/moves_from path (where it is implemented).
++    if (friendlyJump)
++        fastAttacks = fastAttacks2 = false;
++
+     // Initialize calculated NNUE properties
+     nnueKing =  pieceTypes & KING ? KING
+               : extinctionPieceCount == 0 && (extinctionPieceTypes & COMMONER) ? COMMONER
+diff --git a/src/variant.h b/src/variant.h
+index 0e6d44c..2336010 100644
+--- a/src/variant.h
++++ b/src/variant.h
+@@ -68,6 +68,10 @@ struct Variant {
+   PieceSet mutuallyImmuneTypes = NO_PIECE_SET;
+   PieceSet petrifyOnCaptureTypes = NO_PIECE_SET;
+   bool petrifyBlastPieces = false;
++  // Shogi4 friendly-jump: a piece may leap an adjacent FRIENDLY piece, landing two
++  // squares out in that same step direction (capture allowed on landing; no enemy
++  // hops, no chaining). Only sound for single-step leapers. See position.h.
++  bool friendlyJump = false;
+   bool doubleStep = true;
+   Bitboard doubleStepRegion[COLOR_NB] = {Rank2BB, Rank7BB};
+   Bitboard tripleStepRegion[COLOR_NB] = {};

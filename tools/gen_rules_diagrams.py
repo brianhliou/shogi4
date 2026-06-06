@@ -92,10 +92,10 @@ def _grid(bx, by, cell, tile, moves):
     span = 3 * cell
     p = [f'<rect x="{bx}" y="{by}" width="{span}" height="{span}" rx="8" '
          f'fill="{BOARD_FILL}" stroke="{FRAME}" stroke-width="2"/>']
-    for i in (1, 2):  # interior grid lines
-        p.append(f'<line x1="{bx + i * cell}" y1="{by}" x2="{bx + i * cell}" '
-                 f'y2="{by + span}" stroke="{GRID}" stroke-width="1"/>')
-        p.append(f'<line x1="{bx}" y1="{by + i * cell}" x2="{bx + span}" '
+    for i in (1, 2):  # interior grid lines, inset 1px to stop flush at the inner frame edge
+        p.append(f'<line x1="{bx + i * cell}" y1="{by + 1}" x2="{bx + i * cell}" '
+                 f'y2="{by + span - 1}" stroke="{GRID}" stroke-width="1"/>')
+        p.append(f'<line x1="{bx + 1}" y1="{by + i * cell}" x2="{bx + span - 1}" '
                  f'y2="{by + i * cell}" stroke="{GRID}" stroke-width="1"/>')
 
     def cxx(col):
@@ -182,10 +182,10 @@ def start_board(labels=True, max_w=None):
     s = [_open(W, H, max_w)]
     s.append(f'<rect x="{ml}" y="{mt}" width="{span}" height="{span}" rx="9" '
              f'fill="{BOARD_FILL}" stroke="{FRAME}" stroke-width="2"/>')
-    for i in (1, 2, 3):
-        s.append(f'<line x1="{ml + i * cell}" y1="{mt}" x2="{ml + i * cell}" '
-                 f'y2="{mt + span}" stroke="{GRID}" stroke-width="1"/>')
-        s.append(f'<line x1="{ml}" y1="{mt + i * cell}" x2="{ml + span}" '
+    for i in (1, 2, 3):  # inset 1px to stop flush at the inner frame edge
+        s.append(f'<line x1="{ml + i * cell}" y1="{mt + 1}" x2="{ml + i * cell}" '
+                 f'y2="{mt + span - 1}" stroke="{GRID}" stroke-width="1"/>')
+        s.append(f'<line x1="{ml + 1}" y1="{mt + i * cell}" x2="{ml + span - 1}" '
                  f'y2="{mt + i * cell}" stroke="{GRID}" stroke-width="1"/>')
     for (c, r), (tile, owner) in START.items():
         x = ml + (c - 1) * cell
@@ -278,15 +278,20 @@ def _cc(bx, by, cell, col, row):
     return bx + (col + 0.5) * cell, by + (row + 0.5) * cell
 
 
+_LAST_BOARD = [(0, 0, 0, 0)]   # (bx, by, w, h) of the most recent board, for _hl clipping
+_HL_ID = [0]
+
+
 def _board(bx, by, cols, rows, cell):
     sx, sy = cols * cell, rows * cell
+    _LAST_BOARD[0] = (bx, by, sx, sy)
     p = [f'<rect x="{bx}" y="{by}" width="{sx}" height="{sy}" rx="8" '
          f'fill="{BOARD_FILL}" stroke="{FRAME}" stroke-width="2"/>']
-    for i in range(1, cols):
-        p.append(f'<line x1="{bx + i * cell}" y1="{by}" x2="{bx + i * cell}" '
-                 f'y2="{by + sy}" stroke="{GRID}" stroke-width="1"/>')
+    for i in range(1, cols):                       # inset 1px so lines stop flush at the inner frame edge
+        p.append(f'<line x1="{bx + i * cell}" y1="{by + 1}" x2="{bx + i * cell}" '
+                 f'y2="{by + sy - 1}" stroke="{GRID}" stroke-width="1"/>')
     for i in range(1, rows):
-        p.append(f'<line x1="{bx}" y1="{by + i * cell}" x2="{bx + sx}" '
+        p.append(f'<line x1="{bx + 1}" y1="{by + i * cell}" x2="{bx + sx - 1}" '
                  f'y2="{by + i * cell}" stroke="{GRID}" stroke-width="1"/>')
     return p
 
@@ -323,15 +328,30 @@ def _arrow(x1, y1, x2, y2, cell):
 
 
 def _hl(bx, by, cell, col, row):
-    """A from/to square highlight (yellow), drawn over the board, under tiles."""
-    x, y = bx + col * cell + 1.5, by + row * cell + 1.5
-    return (f'<rect x="{x:.1f}" y="{y:.1f}" width="{cell - 3:.1f}" '
-            f'height="{cell - 3:.1f}" rx="5" fill="{HL}" opacity="0.55"/>')
+    """A from/to square highlight: the full cell flush to the grid, clipped to the
+    board's rounded outline so it rounds only at the board corners. Drawn over the
+    board, under tiles."""
+    bxx, byy, bw, bh = _LAST_BOARD[0]
+    cid = f"hlc{_HL_ID[0]}"
+    _HL_ID[0] += 1
+    # Inset the clip by the board stroke's half-width (1px of the 2px frame) so the
+    # highlight stops at the inner edge of the border instead of painting over it.
+    return (f'<clipPath id="{cid}"><rect x="{bxx + 1}" y="{byy + 1}" width="{bw - 2}" '
+            f'height="{bh - 2}" rx="7"/></clipPath>'
+            f'<rect x="{bx + col * cell:.1f}" y="{by + row * cell:.1f}" width="{cell:.1f}" '
+            f'height="{cell:.1f}" fill="{HL}" opacity="0.55" clip-path="url(#{cid})"/>')
 
 
 def _rowwash(bx, by, cell, cols, row, color):
-    return (f'<rect x="{bx}" y="{by + row * cell}" width="{cols * cell}" '
-            f'height="{cell}" fill="{color}"/>')
+    # Clip to the board's (inset) rounded outline so the far/near rows round at the
+    # board corners and stop inside the frame, matching the square highlights.
+    bxx, byy, bw, bh = _LAST_BOARD[0]
+    cid = f"hlc{_HL_ID[0]}"
+    _HL_ID[0] += 1
+    return (f'<clipPath id="{cid}"><rect x="{bxx + 1}" y="{byy + 1}" width="{bw - 2}" '
+            f'height="{bh - 2}" rx="7"/></clipPath>'
+            f'<rect x="{bx}" y="{by + row * cell}" width="{cols * cell}" '
+            f'height="{cell}" fill="{color}" clip-path="url(#{cid})"/>')
 
 
 def _cap_ring(bx, by, cell, col, row):
@@ -362,16 +382,15 @@ def _ghost(bx, by, cell, col, row, tile, owner=1):
 
 
 def _farmbox(x, y, w, h, tile, label):
-    """A dashed 'farm' (hand) box; holds one of your tiles when `tile` is set."""
+    """A dashed horizontal 'farm' (hand) strip below the board (like the sample-game
+    komadai): the held tile sits at the left, the label at the right."""
     out = [f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="8" fill="{FARM}" '
            f'stroke="{FRAME}" stroke-width="1.5" stroke-dasharray="5 4"/>']
     if tile:
-        size = min(w, h) * 0.62
-        cx, cy = x + w / 2, y + h * 0.4
-        out.append(img(tile, cx - size / 2, cy - size / 2, size))
-    out.append(f'<text x="{x + w / 2:.1f}" y="{y + h - 10:.1f}" '
-               f'text-anchor="middle" fill="{LABEL}" '
-               f'font-family="system-ui,sans-serif" font-size="12">{label}</text>')
+        size = h * 0.74
+        out.append(img(tile, x + 8, y + (h - size) / 2, size))
+    out.append(f'<text x="{x + w - 12:.1f}" y="{y + h / 2 + 4:.1f}" text-anchor="end" '
+               f'fill="{LABEL}" font-family="system-ui,sans-serif" font-size="12">{label}</text>')
     return out
 
 
@@ -380,26 +399,27 @@ def _scenelabel(cx, y, text):
             f'font-family="system-ui,sans-serif" font-size="12">{text}</text>')
 
 
-def capture_diagram(max_w=600):
-    """Before / after a capture on the 4×4 board, each panel showing the farm
-    on the right: your Fox takes an enemy Raccoon-dog, which lands in your
-    farm (switching sides)."""
+def capture_diagram(max_w=520):
+    """Before / after a capture on the 4×4 board, each panel showing the farm as a
+    strip below: your Fox takes an enemy Raccoon-dog, which lands in your farm
+    (switching sides)."""
     cell, m = 40, 12
     span = 4 * cell
-    farm_w, gap_bf = 46, 6
-    unit = span + gap_bf + farm_w
-    mid, lab = 40, 18
-    W = m + unit + mid + unit + m
-    H = m + span + lab + m
+    farm_h, gap_bf, lab = 40, 8, 16
+    panel_h = span + gap_bf + farm_h
+    mid = 40
+    W = m + span + mid + span + m
+    H = m + panel_h + lab + m
     s = [_open(W, H, max_w)]
 
     def panel(ox, after, label):
-        bx, by, fx = ox, m, ox + span + gap_bf
+        bx, by = ox, m
+        fy = by + span + gap_bf
         out = _board(bx, by, 4, 4, cell)
         if after:
             out.append(_hl(bx, by, cell, 2, 2))
             out.append(_place(bx, by, cell, 2, 2, "fox", owner=1))
-            out += _farmbox(fx, by, farm_w, span, "raccoon", "farm")
+            out += _farmbox(bx, fy, span, farm_h, "raccoon", "farm")
         else:
             out.append(_hl(bx, by, cell, 1, 2))
             out.append(_hl(bx, by, cell, 2, 2))
@@ -409,31 +429,31 @@ def capture_diagram(max_w=600):
             fxx, fyy = _cc(bx, by, cell, 1, 2)
             kx, ky = _cc(bx, by, cell, 2, 2)
             out.append(_arrow(fxx, fyy, kx, ky, cell))
-            out += _farmbox(fx, by, farm_w, span, None, "farm")
-        out.append(_scenelabel(bx + span / 2, by + span + 14, label))
+            out += _farmbox(bx, fy, span, farm_h, None, "farm")
+        out.append(_scenelabel(bx + span / 2, fy + farm_h + 13, label))
         return out
 
     s += panel(m, False, "before")
-    ax, ay = m + unit + 9, m + span / 2
+    ax, ay = m + span + 9, m + span / 2
     s.append(f'<line x1="{ax:.1f}" y1="{ay:.1f}" x2="{ax + mid - 24:.1f}" '
              f'y2="{ay:.1f}" stroke="{ARROW}" stroke-width="2.5"/>')
     s.append(f'<path d="M {ax + mid - 26:.1f} {ay - 5:.1f} '
              f'L {ax + mid - 18:.1f} {ay:.1f} L {ax + mid - 26:.1f} {ay + 5:.1f} Z" '
              f'fill="{ARROW}"/>')
-    s += panel(m + unit + mid, True, "after")
+    s += panel(m + span + mid, True, "after")
     s.append("</svg>")
     return "\n".join(s)
 
 
-def drop_diagram(max_w=440):
-    """Allowed vs forbidden rows, farm on the right: drop from your farm onto
+def drop_diagram(max_w=300):
+    """Allowed vs forbidden rows, farm as a strip below: drop from your farm onto
     any empty square in the green rows; the red far row (the opponent's back
     rank) is barred."""
-    cell, m, gap, farm_w = 50, 12, 22, 76
+    cell, m, gap, farm_h = 50, 12, 10, 50
     span = 4 * cell
     bx = by = m
-    fx = bx + span + gap
-    W, H = fx + farm_w + m, m + span + m
+    fy = by + span + gap                            # farm strip below the board
+    W, H = m + span + m, fy + farm_h + m
     s = [_open(W, H, max_w)]
     s += _board(bx, by, 4, 4, cell)
     for r in (1, 2, 3):                              # allowed rows (faint green)
@@ -444,9 +464,9 @@ def drop_diagram(max_w=440):
         s.append(_ban(bx, by, cell, c, 0))
     s.append(_hl(bx, by, cell, 1, 2))               # the example drop square
     s.append(_ghost(bx, by, cell, 1, 2, "raccoon", owner=1))
-    s += _farmbox(fx, by, farm_w, span, "raccoon", "your farm")
+    s += _farmbox(bx, fy, span, farm_h, "raccoon", "farm")
     tx, ty = _cc(bx, by, cell, 1, 2)
-    fcx, fcy = fx + farm_w / 2, by + span * 0.4
+    fcx, fcy = bx + 8 + farm_h * 0.37, fy + farm_h / 2   # the farm tile, up to the drop square
     s.append(_arrow(fcx, fcy, tx, ty, cell))
     s.append("</svg>")
     return "\n".join(s)

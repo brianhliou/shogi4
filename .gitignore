@@ -18,6 +18,12 @@ venv/
 /solver/out/
 /data/tablebase/
 
+# Patched Fairy-Stockfish: a regenerable build artifact, not source. Rebuild from
+# engine/shogi4-friendlyjump.patch (pinned upstream SHA) via engine/build-shogi4-engine.sh.
+/engine/Fairy-Stockfish/
+# Generated standalone game viewer (rebuild: python3 engine/make_viewer.py)
+/engine/viewer/
+
 # OS / editor
 .DS_Store
 *.swp
