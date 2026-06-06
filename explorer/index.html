@@ -55,26 +55,27 @@
   /* layout */
   .main { flex:1 1 auto; min-height:0; display:flex; gap:22px; align-items:stretch; justify-content:center; }
   .left { flex:0 1 auto; min-width:0; min-height:0; display:flex; justify-content:center; align-items:center; }
-  .boardbox { display:flex; flex-direction:row; align-items:stretch; gap:14px; min-height:0; width:fit-content; }
-  .hands { display:flex; flex-direction:column; justify-content:space-between; gap:12px; }
-  #board { display:block; height:min(640px, calc(100vh - 120px));
-           width:min(640px, calc(100vh - 120px)); touch-action:none; }
+  .boardbox { display:flex; flex-direction:column; align-items:stretch; gap:8px; min-height:0;
+              width:min(560px, calc(100vh - 230px)); }
+  #board { display:block; width:100%; height:auto; touch-action:none; }
   #board image, #board .pc { pointer-events:none; }
   #board.grab { cursor:grab; } #board.grab:active { cursor:grabbing; }
 
-  /* hand trays */
-  .tray { display:flex; flex-direction:column; align-items:center; gap:9px; padding:9px 11px 12px;
-          border:1.5px solid #e6e2d6; border-radius:14px; background:#f8f5ec;
+  /* hand trays — horizontal bars above and below the board */
+  .tray { position:relative; display:flex; flex-direction:row; align-items:center; justify-content:center;
+          gap:8px; padding:6px 12px; min-height:0;
+          border:1.5px solid #e6e2d6; border-radius:12px; background:#f8f5ec;
           transition:border-color .15s,box-shadow .15s; }
   .tray.active { border-color:var(--accent); box-shadow:0 0 0 3px rgba(217,138,43,.16); }
-  .traylbl { font-size:.7rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
-             color:#9a8a62; text-align:center; margin-bottom:1px; }
+  .traylbl { position:absolute; left:12px; top:50%; transform:translateY(-50%);
+             font-size:.64rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
+             color:#9a8a62; line-height:1.1; width:52px; }
   .slot { position:relative; display:flex; }
   .chip { display:inline-flex; cursor:grab; user-select:none; }
-  .chip.ghost { opacity:.22; cursor:default; }
-  .chip.sel svg { outline:3px solid rgba(217,138,43,.6); border-radius:13px; }
-  .chip-svg { display:block; width:clamp(44px, calc((100vh - 120px) / 6 - 40px), 88px);
-              height:clamp(44px, calc((100vh - 120px) / 6 - 40px), 88px); pointer-events:none; }
+  .chip.ghost { opacity:.28; cursor:default; }
+  .chip.sel .chip-svg { outline:3px solid rgba(217,138,43,.65); }
+  .chip-svg { display:block; width:clamp(38px, 7.4vh, 54px); height:clamp(38px, 7.4vh, 54px);
+              pointer-events:none; border-radius:11px; box-shadow:0 1px 3px rgba(0,0,0,.2); }
   .cnt { position:absolute; right:-6px; bottom:-9px; min-width:22px; height:21px; padding:0 5px;
          display:flex; align-items:center; justify-content:center; background:#fff; color:#2c2f35;
          border:1.5px solid #d8d2c4; border-radius:999px; font-size:.8rem; font-weight:800; line-height:1;
@@ -117,12 +118,9 @@
     body { overflow:auto; height:auto; }
     .main { flex-wrap:wrap; }
     .left { flex-basis:100%; } .panel { flex-basis:100%; }
-    .boardbox { flex-direction:column; align-items:center; gap:9px; width:auto; }
-    .hands { flex-direction:row; align-self:stretch; justify-content:center; gap:10px; }
-    .tray { flex-direction:row; flex-wrap:wrap; justify-content:center; }
-    .traylbl { width:100%; margin-bottom:0; }
-    .chip-svg { width:48px; height:48px; }
-    #board { height:auto; width:min(360px, 92vw); }
+    .boardbox { width:min(360px, 92vw); }
+    .traylbl { position:static; transform:none; width:auto; }
+    .chip-svg { width:46px; height:46px; }
     .moves { max-height:48vh; }
   }
 </style>
@@ -141,11 +139,9 @@
   <main class="main">
     <section class="left">
       <div class="boardbox">
-        <div class="hands">
-          <div class="tray" id="trayTop"></div>
-          <div class="tray" id="trayBottom"></div>
-        </div>
+        <div class="tray" id="trayTop"></div>
         <div class="board-wrap"><svg id="board" viewBox="0 0 430 424"></svg></div>
+        <div class="tray" id="trayBottom"></div>
       </div>
     </section>
     <aside class="panel">
@@ -172,9 +168,9 @@
       <p class="lead">Oca Studios' public-domain 4×4 animal drop-shogi — the third rung on the
         small-shogi ladder (Dōbutsu 3×4 → <strong>Shogi4 4×4</strong> → Micro 4×5).</p>
       <h3>The pieces</h3>
-      <p>Five per side. Each steps <strong>one square</strong> in its marked directions (the dots
-        on every tile show them, in that piece's forward sense). On reaching the opponent's last
-        rank the four non-royals <strong>evolve</strong> (royals never do):</p>
+      <p>Five per side. Each steps <strong>one square</strong> in its marked directions (the paw
+        prints on every tile show them, in that piece's forward sense). On reaching the opponent's
+        last rank the four non-royals <strong>evolve</strong> (royals never do):</p>
       <ul>
         <li><strong>King</strong> (Crane / Pheasant) — all 8 directions; royal, never evolves. Capturing it wins.</li>
         <li><strong>Carp</strong> (P) — forward only → evolves to <strong>Koi</strong> (O).</li>
@@ -183,7 +179,9 @@
         <li><strong>Fox</strong> (F) — the four orthogonals → <strong>Kitsune</strong> (G).</li>
       </ul>
       <p>Koi, Baku and Tanuki all move as a silver general (forward + four diagonals); Kitsune
-        moves as a gold general. Evolved pieces are shown with an amber letter.</p>
+        moves as a gold general. The second player's pieces sit on a slightly darker card (to tell
+        the sides apart) and are rotated 180°, as in traditional shogi, so each tile's move-marks
+        point the right way for that side.</p>
       <h3>The distinctive rules</h3>
       <ul>
         <li><strong>Friendly-jump</strong> — in any of its directions, a piece may leap a single
@@ -200,7 +198,8 @@
         piece or click a move to play; <strong>◀ ▶</strong> step the line; the dropdown loads
         recorded lines (try the rule demos). When the strong solution is computed, each move will
         also carry its result and distance-to-mate.</p>
-      <p class="credit">Shogi4 © Oca Studios, released public domain. Engine + viewer by Brian Liou.</p>
+      <p class="credit">Shogi4 and its piece artwork © <a href="https://ocastudios.com/four/shogi/">Oca
+        Studios</a>, released into the public domain. Engine + viewer by Brian Liou.</p>
     </div>
   </div>
 
@@ -226,22 +225,7 @@
 const CELL = 96, MX = 34, MY = 28, SVGW = 430, SVGH = 424;
 const INITIAL = "KFRTP......ptrfk;0000;0000;1";
 const FILES = ["a", "b", "c", "d"];
-const NAMES = {K:"King", P:"Carp", T:"Tapir", R:"Raccoon-dog", F:"Fox",
-               O:"Koi", B:"Baku", N:"Tanuki", G:"Kitsune"};
-const EVOLVED = new Set(["O", "B", "N", "G"]);
-const HAND_SLOTS = ["P", "T", "R", "F"];
-// step directions in (dc, drf) — forward sense — mirroring engine/shogi4.py:DIRS
-const DIRS = {
-  K:[[-1,0],[1,0],[0,1],[0,-1],[-1,1],[1,1],[-1,-1],[1,-1]],
-  F:[[-1,0],[1,0],[0,1],[0,-1]],
-  R:[[-1,1],[1,1],[-1,-1],[1,-1]],
-  P:[[0,1]],
-  T:[[0,1],[-1,1],[1,1]],
-  O:[[0,1],[-1,1],[1,1],[-1,-1],[1,-1]],
-  B:[[0,1],[-1,1],[1,1],[-1,-1],[1,-1]],
-  N:[[0,1],[-1,1],[1,1],[-1,-1],[1,-1]],
-  G:[[0,1],[-1,1],[1,1],[-1,0],[1,0],[0,-1]],
-};
+const HAND_SLOTS = ["P", "T", "R", "F"];  // the base types a hand can hold
 
 // ---- state ----
 let CLIPS = {};                  // id -> clip (loaded from clips.json)
@@ -273,42 +257,28 @@ function parsePos(enc) {
            hands: { sente: hand(h1), gote: hand(h2) } };
 }
 
-// ---- SVG pieces ----
-function dotsFor(letter, owner, cxp, cyp, rr, dr, dotc) {
-  const fwd = owner === "sente" ? 1 : -1;
-  let s = "";
-  for (const [dc, drf] of (DIRS[letter] || [])) {
-    const dx = dc, dy = -drf * fwd;
-    s += `<circle class="pc" cx="${(cxp + dx * rr).toFixed(1)}" cy="${(cyp + dy * rr).toFixed(1)}" r="${dr.toFixed(1)}" fill="${dotc}"/>`;
-  }
-  return s;
+// ---- SVG pieces (authentic Oca art; each tile already carries its movement
+// marks — paw prints in the piece's forward sense — and a cream/pink card for
+// base/evolved). Second-player tiles are rotated 180° so each side faces forward.
+const SPRITE = { P:"carp", T:"tapir", R:"raccoon", F:"fox", O:"koi", B:"baku", N:"tanuki", G:"kitsune" };
+function spriteFor(letter, owner) {
+  return letter === "K" ? (owner === "sente" ? "crane" : "pheasant") : SPRITE[letter];
+}
+// the second player's tiles use the slightly-darker-card variant (pieces/dark/),
+// except the King — both royals keep the light card
+function pieceSrc(letter, owner) {
+  const dark = owner === "gote" && letter !== "K";
+  return `pieces/${dark ? "dark/" : ""}${spriteFor(letter, owner)}.png`;
 }
 function pieceTile(cxp, cyp, letter, owner, ghost) {
-  const half = CELL * 0.40;
-  const up = owner === "sente";
-  const fill = up ? "var(--sente)" : "var(--gote)";
-  const stroke = up ? "var(--sente-line)" : "var(--gote-line)";
-  const dotc = up ? "#7a4a2a" : "#dbe2ec";
-  const ink = EVOLVED.has(letter) ? "var(--accent)" : (up ? "var(--sente-ink)" : "var(--gote-ink)");
-  let p = ghost ? `<g opacity="0.5">` : ``;
-  p += `<rect class="pc" x="${(cxp-half).toFixed(1)}" y="${(cyp-half).toFixed(1)}" width="${(2*half).toFixed(1)}" `
-     + `height="${(2*half).toFixed(1)}" rx="${(half*0.22).toFixed(1)}" fill="${fill}" stroke="${stroke}" `
-     + `stroke-width="2"${ghost ? ` stroke-dasharray="5 3"` : ` filter="url(#tsh)"`}/>`;
-  p += dotsFor(letter, owner, cxp, cyp, half * 0.80, half * 0.105, dotc);
-  p += `<text class="pc" x="${cxp.toFixed(1)}" y="${(cyp + half*0.30).toFixed(1)}" text-anchor="middle" `
-     + `font-size="${(half*0.95).toFixed(1)}" font-weight="800" fill="${ink}">${letter}</text>`;
-  return p + (ghost ? `</g>` : ``);
+  const G = CELL * 0.96, x = cxp - G / 2, y = cyp - G / 2;
+  // second player's tiles rotate 180° so the painted move-marks point forward for that side
+  const rot = owner === "gote" ? ` transform="rotate(180 ${cxp.toFixed(1)} ${cyp.toFixed(1)})"` : "";
+  return `<image class="pc" href="${pieceSrc(letter, owner)}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" `
+       + `width="${G.toFixed(1)}" height="${G.toFixed(1)}"${rot} filter="url(#psh)"${ghost ? ` opacity="0.5"` : ``}/>`;
 }
 function chipSVG(letter, owner) {
-  const c = 16, rr = 12.5, dr = 1.7;
-  const up = owner === "sente";
-  const dotc = up ? "#7a4a2a" : "#dbe2ec";
-  const fill = up ? "var(--sente)" : "var(--gote)", stroke = up ? "var(--sente-line)" : "var(--gote-line)";
-  const ink = EVOLVED.has(letter) ? "var(--accent)" : (up ? "var(--sente-ink)" : "var(--gote-ink)");
-  return `<svg class="chip-svg" viewBox="0 0 32 32">`
-    + `<rect x="3" y="3" width="26" height="26" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>`
-    + dotsFor(letter, owner, c, c, rr, dr, dotc)
-    + `<text x="16" y="20.5" text-anchor="middle" font-size="14" font-weight="800" fill="${ink}">${letter}</text></svg>`;
+  return `<svg class="chip-svg" viewBox="0 0 32 32"><image href="${pieceSrc(letter, owner)}" x="0" y="0" width="32" height="32"/></svg>`;
 }
 
 function arrow(from, to) {
@@ -324,8 +294,8 @@ function arrow(from, to) {
 
 function defs() {
   return `<defs>
-    <filter id="tsh" x="-40%" y="-40%" width="180%" height="180%">
-      <feDropShadow dx="0" dy="1.3" stdDeviation="1.3" flood-color="#000" flood-opacity="0.30"/></filter>
+    <filter id="psh" x="-15%" y="-12%" width="130%" height="132%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.22"/></filter>
     <filter id="bsh" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity="0.18"/></filter>
     <clipPath id="bclip"><rect x="${MX}" y="${MY}" width="${4*CELL}" height="${4*CELL}" rx="9"/></clipPath>
@@ -357,38 +327,42 @@ function renderBoard(parsed) {
   for (let r = 1; r <= 4; r++)
     s += `<text x="${MX-13}" y="${cyr(r)+5}" font-size="13" text-anchor="middle" fill="#9a8a62" font-weight="700">${r}</text>`;
 
-  // last-move highlight
+  // last-move tint — behind the tiles, so it shows on the (empty) source square
   if (lastMove) for (const sq of [lastMove.from, lastMove.to]) if (sq)
-    s += `<rect x="${cellX(sq.c)}" y="${cellY(sq.r)}" width="${CELL}" height="${CELL}" fill="#f6d873" opacity="0.45"/>`;
+    s += `<rect x="${cellX(sq.c)}" y="${cellY(sq.r)}" width="${CELL}" height="${CELL}" fill="#f6d873" opacity="0.4"/>`;
 
-  // selected piece
-  if (selected && selected.kind === "board")
-    s += `<rect x="${cellX(selected.from.c)}" y="${cellY(selected.from.r)}" width="${CELL}" height="${CELL}" fill="#d98a2b" opacity="0.28"/>`;
-
-  // legal-destination markers
-  for (const t of targets) {
-    if (occ[t.c + "," + t.r])
-      s += `<circle cx="${cx(t.c)}" cy="${cyr(t.r)}" r="${CELL*0.45}" fill="none" stroke="var(--move)" stroke-width="4" opacity="0.7"/>`;
-    else
-      s += `<circle cx="${cx(t.c)}" cy="${cyr(t.r)}" r="${CELL*0.15}" fill="var(--move)" opacity="0.45"/>`;
-  }
-
-  // hover ring
-  if (hoverTo)
-    s += `<rect x="${cellX(hoverTo.c)+1.5}" y="${cellY(hoverTo.r)+1.5}" width="${CELL-3}" height="${CELL-3}" rx="4" fill="none" stroke="var(--accent)" stroke-width="3"/>`;
-
-  // pieces (the dragged one is lifted off)
+  // pieces (the dragged one is lifted off) — opaque tiles, so markers go on top
   for (const p of parsed.cells) {
     if (lift && selected && selected.kind === "board"
         && p.c === selected.from.c && p.r === selected.from.r) continue;
     s += pieceTile(cx(p.c), cyr(p.r), p.piece, p.owner);
   }
 
-  // hovered-move preview
+  // last-move outline — on top, so the destination tile is clearly flagged
+  if (lastMove) for (const sq of [lastMove.from, lastMove.to]) if (sq)
+    s += `<rect x="${cellX(sq.c)+2}" y="${cellY(sq.r)+2}" width="${CELL-4}" height="${CELL-4}" rx="6" fill="none" stroke="#eaa61f" stroke-width="3" opacity="0.9"/>`;
+
+  // selected piece outline
+  if (selected && selected.kind === "board")
+    s += `<rect x="${cellX(selected.from.c)+2}" y="${cellY(selected.from.r)+2}" width="${CELL-4}" height="${CELL-4}" rx="6" fill="none" stroke="var(--accent)" stroke-width="4.5"/>`;
+
+  // legal-destination markers (on top of the tiles)
+  for (const t of targets) {
+    if (occ[t.c + "," + t.r])
+      s += `<rect x="${cellX(t.c)+2}" y="${cellY(t.r)+2}" width="${CELL-4}" height="${CELL-4}" rx="6" fill="none" stroke="var(--cap)" stroke-width="4.5" opacity="0.85"/>`;
+    else
+      s += `<circle cx="${cx(t.c)}" cy="${cyr(t.r)}" r="${CELL*0.16}" fill="var(--move)" opacity="0.8"/>`;
+  }
+
+  // hover ring
+  if (hoverTo)
+    s += `<rect x="${cellX(hoverTo.c)+1.5}" y="${cellY(hoverTo.r)+1.5}" width="${CELL-3}" height="${CELL-3}" rx="5" fill="none" stroke="var(--accent)" stroke-width="3"/>`;
+
+  // hovered-move preview: arrow for a board move, ghost tile for a drop
   if (hoverMove) {
     const to = hoverMove.to;
     if (hoverMove.from) {
-      s += `<rect x="${cellX(to.c)+1.5}" y="${cellY(to.r)+1.5}" width="${CELL-3}" height="${CELL-3}" rx="4" fill="none" stroke="#e08220" stroke-width="3" opacity="0.85"/>`;
+      s += `<rect x="${cellX(to.c)+2}" y="${cellY(to.r)+2}" width="${CELL-4}" height="${CELL-4}" rx="6" fill="none" stroke="#e08220" stroke-width="3" opacity="0.85"/>`;
       s += arrow(hoverMove.from, to);
     } else {
       s += pieceTile(cx(to.c), cyr(to.r), hoverMove.piece, parsed.side, true);

@@ -1,0 +1,24 @@
+Piece artwork: Oca Studios — Shogi4 ("Four" series), released into the PUBLIC DOMAIN.
+Source: ocastudios.com/four/shogi · BGG boardgame/146291/shogi4
+
+These are the official piece tiles, extracted from the public-domain Android app
+com.ocastudios.shogi4 v1.0.1 (the same app whose logic.py was decompiled to recover
+the ruleset — see research/prior-art-evidence/). Each tile already carries the
+authentic movement marks (paw prints, in the piece's forward sense); base pieces sit
+on a cream card and evolved pieces on a pink card.
+
+  crane.png      King — Crane (first player's royal)
+  pheasant.png   King — Pheasant (second player's royal)
+  carp.png       Carp        -> koi.png      Koi      (evolved)
+  tapir.png      Tapir       -> baku.png     Baku     (evolved)
+  raccoon.png    Raccoon-dog -> tanuki.png   Tanuki   (evolved)
+  fox.png        Fox         -> kitsune.png  Kitsune  (evolved)
+
+The sprites here are used exactly as shipped (pristine). The viewer rotates the second
+player's tiles 180° (as in the app) so each tile's painted move-marks point forward for
+that side. The variants in dark/ are auto-generated (tools/gen_dark_cards.py) for the
+second player's non-royal pieces: only the card background is darkened ~12% by a border
+flood-fill; the animal and the paw move-marks are left at full colour.
+
+No attribution is legally required (public domain); credit to Oca Studios is given
+out of courtesy in the README and the "How it works" panel.

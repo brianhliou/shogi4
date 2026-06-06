@@ -1,6 +1,6 @@
 # Shogi4: a validated strong-solution engine for 4×4 drop-shogi, and a de-risked path to the frontier
 
-*Brian Liou · June 2026 · [github.com/brianhliou/shogi4](https://github.com/brianhliou/shogi4)*
+*Brian Liou · June 2026*
 
 Drop-shogi is the live frontier of strongly-solved games. Dōbutsu Shōgi (3×4) is the largest one solved — Tanaka strongly solved it in 2009. I reproduced that solution from scratch and validated it position-by-position against `clausecker/dobutsu`, then built and validated the **complete strong-solution engine for the next rung up, Shogi4** (a public-domain 4×4 drop-shogi), and de-risked its full distributed solve to the point where only the compute run remains. The rung after that, Micro Shogi (4×5), is open.
 
@@ -53,4 +53,4 @@ The same ladder continues to Micro Shogi (~19× larger, the open frontier), whos
 
 ## About
 
-Solo and independent. The full source — engine, validation harnesses, and the research ledger that records every number with its provenance and every self-correction — is public and reproducible end-to-end. The natural next step is the distributed run itself, on a cluster: the pipeline is validated against an oracle, the cost is calibrated, and the distributed design is proven correct under sharding and worker failure. I'd welcome collaboration with anyone working in this lineage.
+Solo and independent. The full source — engine, validation harnesses, and the research ledger that records every number with its provenance and every self-correction — is reproducible end-to-end and available on request. The natural next step is the distributed run itself, on a cluster: the pipeline is validated against an oracle, the cost is calibrated, and the distributed design is proven correct under sharding and worker failure. I'd welcome collaboration with anyone working in this lineage.

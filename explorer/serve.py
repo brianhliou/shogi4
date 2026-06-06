@@ -163,6 +163,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._file("index.html", "text/html; charset=utf-8")
         elif u.path == "/clips.json":
             self._file("clips.json", "application/json")
+        elif u.path.startswith("/pieces/") and u.path.endswith(".png"):
+            rel = u.path[len("/pieces/"):]
+            if re.fullmatch(r"(dark/)?[a-z]+\.png", rel):   # optional dark/ variant
+                self._file(os.path.join("pieces", *rel.split("/")), "image/png")
+            else:
+                self._send(404, "text/plain", b"not found")
         elif u.path == "/api":
             q = urllib.parse.parse_qs(u.query)
             enc = q.get("pos", [INITIAL])[0]
