@@ -64,7 +64,7 @@ fn dirs(a: u8) -> &'static [(i8, i8)] {
 #[inline] fn row(s: usize) -> i8 { (s / 4) as i8 + 1 }
 #[inline] fn on(c: i8, r: i8) -> bool { (1..=4).contains(&c) && (1..=4).contains(&r) }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Pos {
     pub board: [u8; 16],    // 0 empty, else packed cell
     pub hands: [[u8; 4]; 2], // [owner][base_slot]
@@ -869,7 +869,11 @@ pub fn predecessors(q: &Pos) -> Vec<Pos> {
             }
         }
     }
-    set.into_iter().collect()
+    // Deterministic order (HashSet iteration is randomized) — so checkpoint replay
+    // is bit-exact and the whole solver is reproducible.
+    let mut out: Vec<Pos> = set.into_iter().collect();
+    out.sort_unstable();
+    out
 }
 
 // Value codes in the flat array.

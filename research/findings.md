@@ -246,6 +246,17 @@ solve's iterative shuffle (one forward pass + a sort-merge vs the full fixpoint)
 *shrinks* further. A computed result is therefore verifiable far more cheaply than re-deriving it.
 **[measured — solver/src/bin/audit_demo.rs]**
 
+**Failure-recovery — validated, and it caught a latent nondeterminism.** `failrec_check` injects
+crashes at many supersteps (snapshot the checkpoint, run the superstep, discard the work, replay
+from the checkpoint), asserting each replay reproduces the superstep **byte-for-byte** and the final
+result equals the crash-free run — passed on all subgames (1–18 recoveries each). Building it
+surfaced a real bug: `predecessors` collected from a `HashSet` (randomized iteration order), so
+replays emitted the same messages in a *different order* — harmless to the confluent result but
+breaking bit-exact checkpoints. Fixed by sorting `predecessors`, which makes the whole solver
+**deterministic/reproducible**, exactly what idempotent recovery requires. So "a shard = a
+checkpoint + a deterministic recompute" is now a demonstrated property, not an assumption.
+**[measured — solver/src/bin/failrec_check.rs]**
+
 **Cost calibration:** the 2-piece subgame runs at ~286k edges/s in pure Python (1 core). The full
 solve is ~4×10¹⁴ edge-ops (≈3×10¹³ positions × ~13 branching), so Python would take *decades* — but
 Rust at ~150 ns/edge (the Dōbutsu solver's measured RAM-speed) puts it at **~2–6 core-years**, i.e.
