@@ -184,4 +184,4 @@ Draft discussion post (Ideas category):
 > codebase) and I'm glad to do the work. If it's not a fit upstream, no problem, it
 > lives fine as a fork. Mostly wanted to ask before assuming either way.
 >
-> Variant writeup: https://mistboard.com/rules/shogi4
+> Variant writeup: https://mistboard.com/articles/shogi4
