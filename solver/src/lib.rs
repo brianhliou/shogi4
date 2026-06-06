@@ -913,13 +913,21 @@ pub fn mirror(pos: &Pos) -> Pos {
 pub fn solve_push_array(types: &[u8], counts: &[u8]) -> (Ranker, Vec<u8>, Vec<bool>) {
     let rk = Ranker::new(types, counts);
     let n = rk.size() as usize;
+    // In-RAM solver: every reachable in-RAM rank domain (subgames, partials) is
+    // < 4.29B, so ranks fit u32 — halving the work-queue memory. The full game
+    // (~4×10¹⁴) never comes through here; it's the external-memory build.
+    assert!(n <= u32::MAX as usize, "solve_push_array is in-RAM only (N must fit u32)");
+    let progress = std::env::var("SHOGI4_PROGRESS").is_ok();
     let mut val = vec![V_UNK; n];
     let mut cnt = vec![0u16; n]; // undecided non-king-capture children
     let mut legal = vec![false; n];
-    let mut q: VecDeque<u64> = VecDeque::new();
+    let mut q: VecDeque<u32> = VecDeque::new();
 
     // init: one forward pass to count children + seed terminals
     for i in 0..n {
+        if progress && i % (n / 20).max(1) == 0 {
+            eprintln!("init {}%  ({i}/{n})", i * 100 / n.max(1));
+        }
         let pos = rk.unrank(i as u64);
         if !is_legal(&pos) {
             continue;
@@ -937,16 +945,24 @@ pub fn solve_push_array(types: &[u8], counts: &[u8]) -> (Ranker, Vec<u8>, Vec<bo
         cnt[i] = deg;
         if imm_win {
             val[i] = V_WIN;
-            q.push_back(i as u64);
+            q.push_back(i as u32);
         } else if deg == 0 {
             val[i] = V_LOSS;
-            q.push_back(i as u64);
+            q.push_back(i as u32);
         }
+    }
+    if progress {
+        eprintln!("init done; propagating ({} terminals seeded)", q.len());
     }
 
     // propagate backward via un-move generation
+    let mut processed = 0u64;
     while let Some(qi) = q.pop_front() {
-        let qpos = rk.unrank(qi);
+        processed += 1;
+        if progress && processed % 10_000_000 == 0 {
+            eprintln!("propagated {processed}; queue {}", q.len());
+        }
+        let qpos = rk.unrank(qi as u64);
         let qv = val[qi as usize];
         for p in predecessors(&qpos) {
             let pi = rk.rank(&p) as usize;
@@ -955,15 +971,18 @@ pub fn solve_push_array(types: &[u8], counts: &[u8]) -> (Ranker, Vec<u8>, Vec<bo
             }
             if qv == V_LOSS {
                 val[pi] = V_WIN; // a move to a Loss => Win
-                q.push_back(pi as u64);
+                q.push_back(pi as u32);
             } else {
                 cnt[pi] = cnt[pi].saturating_sub(1);
                 if cnt[pi] == 0 {
                     val[pi] = V_LOSS; // all children Win => Loss
-                    q.push_back(pi as u64);
+                    q.push_back(pi as u32);
                 }
             }
         }
+    }
+    if progress {
+        eprintln!("propagation done ({processed} processed)");
     }
     (rk, val, legal)
 }
