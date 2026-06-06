@@ -23,7 +23,10 @@ in `findings.md`. Oca's PnP PDF / dormant server are no longer on the critical p
 - **Q1d — Other drop legality.** ✅ **None** — no nifu, no drop-mate, no immobile-drop rule.
 - **Q1e — Repetition / draw convention.** The app has **no** repetition/draw rule (grep confirms),
   so this stays **our declared convention**: *repeated/infinite play = draw, no perpetual-check
-  exception*. The only rule that is ours, not Oca's — flag it as such in any writeup. **[our decision]**
+  exception*. Operationally (competitive play + the public rules article) this is enforced as
+  **threefold repetition = automatic draw**, which realizes infinite-play-as-draw in finite play
+  and leaves the solved game value unchanged. The only rule that is ours, not Oca's — flag it as
+  such in any writeup. **[our decision]**
 - **Win condition.** ✅ Capture the King (and only that); no checkmate, no check restriction
   (moving into check is legal); no Try rule. Promotion is mandatory on the last rank.
 

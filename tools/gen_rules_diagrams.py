@@ -17,6 +17,7 @@ Outputs (all under ../mistboard):
 
 Run:  python3 tools/gen_rules_diagrams.py
 """
+import math
 import os
 import shutil
 
@@ -33,8 +34,22 @@ URL = "/shogi4/pieces"
 BOARD_FILL = "#f4ead2"
 FRAME = "#c9b07f"
 GRID = "#ddcca6"
-DOT = "#15705c"          # reachable-square dot
+DOT = "#15705c"          # reachable-square dot (piece-move grids)
+# Move-scene overlays, matched to the explorer / chess-article study layers so
+# the rules diagrams read in the same visual language as the playable boards.
+MOVE_ARROW = "#e08220"   # move arrow (explorer arrow colour)
+HL = "#f6d873"           # from/to square highlight (yellow, drawn at 0.55)
+CAP = "#c0392b"          # capture ring + forbidden-square mark (red)
+TEAL = "#2b8a8a"         # legal-destination dot
+WASH_OK = "rgba(45,100,45,0.10)"    # allowed-rows wash (drop diagram)
+WASH_NO = "rgba(192,57,43,0.16)"    # forbidden-row wash (drop diagram)
+FARM = "#efe2c4"         # farm (hand) box fill
 LABEL = "#9a8c6a"
+
+# Shared sizing so every 3×3-board diagram (move pairs, royal, jump cases)
+# renders its tiles at the same on-page pixel size: cell px × TILE_SCALE.
+CELL3 = 56
+TILE_SCALE = 1.25
 
 # ---- move directions in SCREEN coords: dy = -1 is forward (up). -------------
 # Mirrors engine/shogi4.py DIRS, re-expressed with forward = up.
@@ -108,13 +123,13 @@ def move_grid(piece, max_w=300):
     return "\n".join(s)
 
 
-def duo(tiles, move_key, max_w=540):
+def duo(tiles, move_key):
     """Two tiles side by side sharing one move (e.g. the two royals)."""
-    cell, m, gap = 56, 12, 24
+    cell, m, gap = CELL3, 12, 24
     span = 3 * cell
     W = 2 * m + 2 * span + gap
     H = 2 * m + span
-    s = [_open(W, H, max_w)]
+    s = [_open(W, H, int(W * TILE_SCALE))]
     for i, t in enumerate(tiles):
         s += _grid(m + i * (span + gap), m, cell, t, MOVES[move_key])
     s.append("</svg>")
@@ -124,16 +139,16 @@ def duo(tiles, move_key, max_w=540):
 ARROW = "#8a7a55"
 
 
-def pair_diagram(base_key, evolved_tile, evolved_key, max_w=600):
+def pair_diagram(base_key, evolved_tile, evolved_key):
     """Base piece (left) -> evolved form (right), each a 3x3 move grid with an
     arrow between, so a reader sees what evolves into what and how its move
     changes. Koi/Baku/Tanuki are silvers; Kitsune is a gold."""
-    cell, m, arrow = 52, 12, 46
+    cell, m, arrow = CELL3, 12, 46
     span = 3 * cell
     bx2 = m + span + arrow
     W = bx2 + span + m
     H = 2 * m + span
-    s = [_open(W, H, max_w)]
+    s = [_open(W, H, int(W * TILE_SCALE))]
     s += _grid(m, m, cell, MOVE_TILE[base_key], MOVES[base_key])
     s += _grid(bx2, m, cell, evolved_tile, MOVES[evolved_key])
     y = m + span / 2
@@ -197,40 +212,263 @@ def start_board(labels=True, max_w=None):
     return "\n".join(s)
 
 
-def jump_diagram(max_w=180):
-    """A 1x3 column: mover (bottom) leaps an adjacent ally to the empty square
-    two ahead (top), with a curved leap arrow."""
-    cell = 60
-    ml, mt, mb = 12, 12, 12
-    arrow_pad = 34
-    W = ml + cell + arrow_pad
-    H = mt + 3 * cell + mb
-    cxc = ml + cell / 2
-    s = [_open(W, H, max_w),
-         '<defs><marker id="s4arrow" markerWidth="8" markerHeight="8" '
-         'refX="6" refY="3" orient="auto">'
-         f'<path d="M0,0 L6,3 L0,6 Z" fill="{DOT}"/></marker></defs>']
-    s.append(f'<rect x="{ml}" y="{mt}" width="{cell}" height="{3 * cell}" rx="8" '
-             f'fill="{BOARD_FILL}" stroke="{FRAME}" stroke-width="2"/>')
-    for i in (1, 2):
-        s.append(f'<line x1="{ml}" y1="{mt + i * cell}" x2="{ml + cell}" '
-                 f'y2="{mt + i * cell}" stroke="{GRID}" stroke-width="1"/>')
-    # row 0 top = landing (target ring), row 1 = ally, row 2 bottom = mover
-    top_c = mt + 0 * cell + cell / 2
-    mid_c = mt + 1 * cell + cell / 2
-    bot_c = mt + 2 * cell + cell / 2
-    s.append(f'<circle cx="{cxc:.1f}" cy="{top_c:.1f}" r="{cell * 0.30:.1f}" '
-             f'fill="none" stroke="{DOT}" stroke-width="2" '
-             f'stroke-dasharray="4 4"/>')
-    size = cell * 0.92
-    s.append(img("raccoon", cxc - size / 2, mid_c - size / 2, size))  # ally
-    s.append(img("carp", cxc - size / 2, bot_c - size / 2, size))   # mover
-    # curved leap arrow from mover up to landing, bulging right around the ally
-    bx = ml + cell + arrow_pad - 10
-    s.append(f'<path d="M {ml + cell - 6:.1f} {bot_c - 6:.1f} '
-             f'Q {bx:.1f} {mid_c:.1f} {ml + cell - 6:.1f} {top_c + 6:.1f}" '
-             f'fill="none" stroke="{DOT}" stroke-width="2.5" '
-             f'marker-end="url(#s4arrow)"/>')
+def _jump_panel(bx, by, cell, spec):
+    """One 3×3 friendly-jump case (uses the shared scene primitives). spec keys:
+    pieces [((c, r), tile, owner)], frm/to (leap squares -> arrow + highlights),
+    ring (capture square), ban (illegal square -> red ✕), legal (bool),
+    cap (caption lines, coloured by legal)."""
+    span = 3 * cell
+    out = _board(bx, by, 3, 3, cell)
+    if "frm" in spec:
+        out.append(_hl(bx, by, cell, *spec["frm"]))
+        out.append(_hl(bx, by, cell, *spec["to"]))
+    if "ring" in spec:
+        out.append(_cap_ring(bx, by, cell, *spec["ring"]))
+    for (c, r), tile, owner in spec["pieces"]:
+        out.append(_place(bx, by, cell, c, r, tile, owner=owner))
+    if "ban" in spec:
+        out.append(_ban(bx, by, cell, *spec["ban"]))
+    if "frm" in spec:
+        fx_, fy_ = _cc(bx, by, cell, *spec["frm"])
+        tx_, ty_ = _cc(bx, by, cell, *spec["to"])
+        out.append(_arrow(fx_, fy_, tx_, ty_, cell))
+    col = "#2e7d32" if spec["legal"] else CAP
+    mark = "✓" if spec["legal"] else "✕"
+    for li, line in enumerate(spec["cap"]):
+        txt = f"{mark} {line}" if li == 0 else line
+        out.append(f'<text x="{bx + span / 2:.1f}" '
+                   f'y="{by + span + 15 + li * 15:.1f}" text-anchor="middle" '
+                   f'fill="{col}" font-family="system-ui,sans-serif" '
+                   f'font-size="12">{txt}</text>')
+    return out
+
+
+def jump_cases_diagram():
+    """A 2×2 gallery of friendly-jump cases: legal (✓) on top — leaping an ally
+    straight or on the diagonal — illegal (✕) below."""
+    cell, m, gx, gy, lab = CELL3, 14, 22, 16, 34
+    span = 3 * cell
+    panels = [
+        dict(pieces=[((1, 2), "fox", 1), ((1, 1), "raccoon", 1)],
+             frm=(1, 2), to=(1, 0), legal=True, cap=["straight", "leap"]),
+        dict(pieces=[((0, 2), "raccoon", 1), ((1, 1), "fox", 1)],
+             frm=(0, 2), to=(2, 0), legal=True, cap=["diagonal", "leap"]),
+        dict(pieces=[((1, 2), "fox", 1), ((1, 1), "raccoon", 2)],
+             ban=(1, 1), legal=False, cap=["not over", "an enemy"]),
+        dict(pieces=[((1, 2), "fox", 1), ((1, 1), "raccoon", 1),
+                     ((1, 0), "tapir", 1)],
+             ban=(1, 0), legal=False, cap=["not onto", "your own"]),
+    ]
+    W = m + 2 * span + gx + m
+    H = m + 2 * span + 2 * lab + gy + m
+    s = [_open(W, H, int(W * TILE_SCALE))]
+    for i, spec in enumerate(panels):
+        bx = m + (i % 2) * (span + gx)
+        by = m + (i // 2) * (span + lab + gy)
+        s += _jump_panel(bx, by, cell, spec)
+    s.append("</svg>")
+    return "\n".join(s)
+
+
+# ---- general board-scene primitives (capture / drop / win diagrams) ---------
+# These place arbitrary tiles on an N×M board with move arrows and red
+# capture/ban marks. Row 0 is the top; the first player (owner 1) moves up.
+
+def _cc(bx, by, cell, col, row):
+    return bx + (col + 0.5) * cell, by + (row + 0.5) * cell
+
+
+def _board(bx, by, cols, rows, cell):
+    sx, sy = cols * cell, rows * cell
+    p = [f'<rect x="{bx}" y="{by}" width="{sx}" height="{sy}" rx="8" '
+         f'fill="{BOARD_FILL}" stroke="{FRAME}" stroke-width="2"/>']
+    for i in range(1, cols):
+        p.append(f'<line x1="{bx + i * cell}" y1="{by}" x2="{bx + i * cell}" '
+                 f'y2="{by + sy}" stroke="{GRID}" stroke-width="1"/>')
+    for i in range(1, rows):
+        p.append(f'<line x1="{bx}" y1="{by + i * cell}" x2="{bx + sx}" '
+                 f'y2="{by + i * cell}" stroke="{GRID}" stroke-width="1"/>')
+    return p
+
+
+def _place(bx, by, cell, col, row, tile, owner=1, scale=0.92):
+    """A tile on a scene square. Owner 2 is rotated 180° (facing = ownership);
+    its base tiles use the dark variant, but the Pheasant royal stays itself."""
+    size = cell * scale
+    cx, cy = _cc(bx, by, cell, col, row)
+    ox, oy = cx - size / 2, cy - size / 2
+    if owner == 2:
+        name = tile if tile == "pheasant" else f"dark/{tile}"
+        return img(name, ox, oy, size, rot_center=(cx, cy))
+    return img(tile, ox, oy, size)
+
+
+def _arrow(x1, y1, x2, y2, cell):
+    """Move arrow in the explorer's style: a thick orange shaft starting just
+    off the source centre, a polygon head stopping just short of the target."""
+    dx, dy = x2 - x1, y2 - y1
+    ln = math.hypot(dx, dy) or 1.0
+    ux, uy = dx / ln, dy / ln
+    px, py = -uy, ux
+    w, head, hw = cell * 0.1, cell * 0.3, cell * 0.18
+    sx, sy = x1 + ux * cell * 0.22, y1 + uy * cell * 0.22
+    tipx, tipy = x2 - ux * cell * 0.06, y2 - uy * cell * 0.06
+    bxx, byy = tipx - ux * head, tipy - uy * head
+    return (f'<g opacity="0.68">'
+            f'<line x1="{sx:.1f}" y1="{sy:.1f}" x2="{bxx:.1f}" y2="{byy:.1f}" '
+            f'stroke="{MOVE_ARROW}" stroke-width="{w:.1f}" stroke-linecap="round"/>'
+            f'<polygon points="{tipx:.1f},{tipy:.1f} '
+            f'{bxx + px * hw:.1f},{byy + py * hw:.1f} '
+            f'{bxx - px * hw:.1f},{byy - py * hw:.1f}" fill="{MOVE_ARROW}"/></g>')
+
+
+def _hl(bx, by, cell, col, row):
+    """A from/to square highlight (yellow), drawn over the board, under tiles."""
+    x, y = bx + col * cell + 1.5, by + row * cell + 1.5
+    return (f'<rect x="{x:.1f}" y="{y:.1f}" width="{cell - 3:.1f}" '
+            f'height="{cell - 3:.1f}" rx="5" fill="{HL}" opacity="0.55"/>')
+
+
+def _rowwash(bx, by, cell, cols, row, color):
+    return (f'<rect x="{bx}" y="{by + row * cell}" width="{cols * cell}" '
+            f'height="{cell}" fill="{color}"/>')
+
+
+def _cap_ring(bx, by, cell, col, row):
+    cx, cy = _cc(bx, by, cell, col, row)
+    return (f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{cell * 0.44:.1f}" '
+            f'fill="none" stroke="{CAP}" stroke-width="2.5" opacity="0.85"/>')
+
+
+def _dot(bx, by, cell, col, row):
+    cx, cy = _cc(bx, by, cell, col, row)
+    return (f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{cell * 0.15:.1f}" '
+            f'fill="{TEAL}" opacity="0.8"/>')
+
+
+def _ban(bx, by, cell, col, row):
+    cx, cy = _cc(bx, by, cell, col, row)
+    d = cell * 0.26
+    return (f'<line x1="{cx - d:.1f}" y1="{cy - d:.1f}" x2="{cx + d:.1f}" '
+            f'y2="{cy + d:.1f}" stroke="{CAP}" stroke-width="3.5" '
+            f'stroke-linecap="round" opacity="0.85"/>'
+            f'<line x1="{cx - d:.1f}" y1="{cy + d:.1f}" x2="{cx + d:.1f}" '
+            f'y2="{cy - d:.1f}" stroke="{CAP}" stroke-width="3.5" '
+            f'stroke-linecap="round" opacity="0.85"/>')
+
+
+def _ghost(bx, by, cell, col, row, tile, owner=1):
+    return f'<g opacity="0.42">{_place(bx, by, cell, col, row, tile, owner)}</g>'
+
+
+def _farmbox(x, y, w, h, tile, label):
+    """A dashed 'farm' (hand) box; holds one of your tiles when `tile` is set."""
+    out = [f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="8" fill="{FARM}" '
+           f'stroke="{FRAME}" stroke-width="1.5" stroke-dasharray="5 4"/>']
+    if tile:
+        size = min(w, h) * 0.62
+        cx, cy = x + w / 2, y + h * 0.4
+        out.append(img(tile, cx - size / 2, cy - size / 2, size))
+    out.append(f'<text x="{x + w / 2:.1f}" y="{y + h - 10:.1f}" '
+               f'text-anchor="middle" fill="{LABEL}" '
+               f'font-family="system-ui,sans-serif" font-size="12">{label}</text>')
+    return out
+
+
+def _scenelabel(cx, y, text):
+    return (f'<text x="{cx:.1f}" y="{y:.1f}" text-anchor="middle" fill="{LABEL}" '
+            f'font-family="system-ui,sans-serif" font-size="12">{text}</text>')
+
+
+def capture_diagram(max_w=600):
+    """Before / after a capture on the 4×4 board, each panel showing the farm
+    on the right: your Fox takes an enemy Raccoon-dog, which lands in your
+    farm (switching sides)."""
+    cell, m = 40, 12
+    span = 4 * cell
+    farm_w, gap_bf = 46, 6
+    unit = span + gap_bf + farm_w
+    mid, lab = 40, 18
+    W = m + unit + mid + unit + m
+    H = m + span + lab + m
+    s = [_open(W, H, max_w)]
+
+    def panel(ox, after, label):
+        bx, by, fx = ox, m, ox + span + gap_bf
+        out = _board(bx, by, 4, 4, cell)
+        if after:
+            out.append(_hl(bx, by, cell, 2, 2))
+            out.append(_place(bx, by, cell, 2, 2, "fox", owner=1))
+            out += _farmbox(fx, by, farm_w, span, "raccoon", "farm")
+        else:
+            out.append(_hl(bx, by, cell, 1, 2))
+            out.append(_hl(bx, by, cell, 2, 2))
+            out.append(_place(bx, by, cell, 1, 2, "fox", owner=1))
+            out.append(_place(bx, by, cell, 2, 2, "raccoon", owner=2))
+            out.append(_cap_ring(bx, by, cell, 2, 2))
+            fxx, fyy = _cc(bx, by, cell, 1, 2)
+            kx, ky = _cc(bx, by, cell, 2, 2)
+            out.append(_arrow(fxx, fyy, kx, ky, cell))
+            out += _farmbox(fx, by, farm_w, span, None, "farm")
+        out.append(_scenelabel(bx + span / 2, by + span + 14, label))
+        return out
+
+    s += panel(m, False, "before")
+    ax, ay = m + unit + 9, m + span / 2
+    s.append(f'<line x1="{ax:.1f}" y1="{ay:.1f}" x2="{ax + mid - 24:.1f}" '
+             f'y2="{ay:.1f}" stroke="{ARROW}" stroke-width="2.5"/>')
+    s.append(f'<path d="M {ax + mid - 26:.1f} {ay - 5:.1f} '
+             f'L {ax + mid - 18:.1f} {ay:.1f} L {ax + mid - 26:.1f} {ay + 5:.1f} Z" '
+             f'fill="{ARROW}"/>')
+    s += panel(m + unit + mid, True, "after")
+    s.append("</svg>")
+    return "\n".join(s)
+
+
+def drop_diagram(max_w=440):
+    """Allowed vs forbidden rows, farm on the right: drop from your farm onto
+    any empty square in the green rows; the red far row (the opponent's back
+    rank) is barred."""
+    cell, m, gap, farm_w = 50, 12, 22, 76
+    span = 4 * cell
+    bx = by = m
+    fx = bx + span + gap
+    W, H = fx + farm_w + m, m + span + m
+    s = [_open(W, H, max_w)]
+    s += _board(bx, by, 4, 4, cell)
+    for r in (1, 2, 3):                              # allowed rows (faint green)
+        s.append(_rowwash(bx, by, cell, 4, r, WASH_OK))
+    s.append(_rowwash(bx, by, cell, 4, 0, WASH_NO))  # forbidden far row (red)
+    s.append(_place(bx, by, cell, 3, 0, "pheasant", owner=2))  # far-row anchor
+    for c in (0, 1, 2):                              # ✗ on the empty far-row cells
+        s.append(_ban(bx, by, cell, c, 0))
+    s.append(_hl(bx, by, cell, 1, 2))               # the example drop square
+    s.append(_ghost(bx, by, cell, 1, 2, "raccoon", owner=1))
+    s += _farmbox(fx, by, farm_w, span, "raccoon", "your farm")
+    tx, ty = _cc(bx, by, cell, 1, 2)
+    fcx, fcy = fx + farm_w / 2, by + span * 0.4
+    s.append(_arrow(fcx, fcy, tx, ty, cell))
+    s.append("</svg>")
+    return "\n".join(s)
+
+
+def win_diagram(max_w=340):
+    """On the full 4×4 board, your Fox steps into the enemy royal's corner and
+    captures it: the only way the game ends."""
+    cell, m = 56, 12
+    span = 4 * cell
+    bx = by = m
+    s = [_open(m + span + m, m + span + m, max_w)]
+    s += _board(bx, by, 4, 4, cell)
+    s.append(_hl(bx, by, cell, 3, 1))            # from
+    s.append(_hl(bx, by, cell, 3, 0))            # to
+    s.append(_place(bx, by, cell, 0, 3, "crane", owner=1))     # your royal, corner
+    s.append(_place(bx, by, cell, 3, 0, "pheasant", owner=2))  # enemy royal, corner
+    s.append(_place(bx, by, cell, 3, 1, "fox", owner=1))       # the capturer
+    s.append(_cap_ring(bx, by, cell, 3, 0))
+    fxx, fyy = _cc(bx, by, cell, 3, 1)
+    px, py = _cc(bx, by, cell, 3, 0)
+    s.append(_arrow(fxx, fyy, px, py, cell))
     s.append("</svg>")
     return "\n".join(s)
 
@@ -259,7 +497,10 @@ def emit_ts():
         "SHOGI4_PAIR_RACCOON": pair_diagram("raccoon", "tanuki", "silver"),
         "SHOGI4_PAIR_FOX": pair_diagram("fox", "kitsune", "gold"),
         "SHOGI4_MOVE_ROYAL": duo(["crane", "pheasant"], "crane"),
-        "SHOGI4_JUMP": jump_diagram(),
+        "SHOGI4_JUMP_CASES": jump_cases_diagram(),
+        "SHOGI4_CAPTURE": capture_diagram(),
+        "SHOGI4_DROP": drop_diagram(),
+        "SHOGI4_WIN": win_diagram(),
     }
     head = (
         "// GENERATED by shogi4/tools/gen_rules_diagrams.py — do not edit by hand.\n"
