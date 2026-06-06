@@ -101,18 +101,87 @@ python3 self_play.py [num_games] [out_file] [movetime_ms]   # -> games.txt
 
 One game per line: `<result> <ply-count> <UCI moves>` (`1-0` = White / Player 1 wins).
 
-## In-browser play on mistboard.com (WASM) — next step
+## Deferred work
 
-Needs the **emscripten** toolchain (`emsdk`), not yet installed. Two options:
+### In-browser play on mistboard.com (WASM) — deferred 2026-06-06
 
-1. **Engine-in-WASM** (to *play* against): build our patched `src/` with the
-   [`fairy-stockfish.wasm`](https://github.com/fairy-stockfish/fairy-stockfish.wasm)
-   setup → a `.wasm` + JS loader that speaks UCI in the browser (as pychess.org does).
-   Ship `shogi4.ini` and load it at runtime via `setoption VariantPath` / the JS
-   `loadVariantConfig`.
-2. **ffish.js** (board logic / legal moves / SVG, no search): build `src/ffishjs.cpp`
-   with emscripten (see `Fairy-Stockfish/tests/js`). Good for the move UI; pair with
-   option 1 for an opponent.
+The rules article ships a watchable recorded game, which covers "see the engine."
+Letting visitors *play* the engine in the browser is a separate, larger phase,
+deferred for now. Notes for a clean pickup:
 
-The friendly-jump patch is in the C++, so **either WASM artifact must be built from
-this fork**, not from upstream/npm.
+**What it is.** Browsers can't run the native `stockfish` binary, so in-browser play
+means compiling the C++ engine to WebAssembly with Emscripten — the same thing
+pychess.org does to run Fairy-Stockfish for analysis (the `fairy-stockfish.wasm` /
+`fairy-stockfish-nnue.wasm` npm package). The output is a `.wasm` module + a JS
+worker that speaks UCI from the page.
+
+**Must be built from this fork.** The friendly-jump lives in the C++
+(`shogi4-friendlyjump.patch`), so the upstream npm package can't play Shogi4 — the
+WASM has to be compiled from the patched `src/`.
+
+**Build path:**
+1. Install Emscripten (`emsdk`, ~1–2 GB) — the one missing prerequisite.
+2. Apply the patch to a fresh FSF checkout at pinned `1b5bdd40` (reuse the clone +
+   `git apply` from `build-shogi4-engine.sh`).
+3. Build to WASM, either:
+   - **engine-in-WASM** (to play against): the
+     [`fairy-stockfish.wasm`](https://github.com/fairy-stockfish/fairy-stockfish.wasm)
+     Emscripten build pointed at the patched `src/` → `.wasm` + JS worker; or
+   - **ffish.js** (legal-move gen / board logic, no search): `emcc` build of
+     `Fairy-Stockfish/src/ffishjs.cpp` (see `Fairy-Stockfish/tests/js`).
+4. Load `shogi4.ini` at runtime: `setoption name VariantPath value <ini>` then
+   `setoption name UCI_Variant value shogi4` (or ffish.js `loadVariantConfig`).
+
+**Web integration (`mistboard/apps/web`):** run the engine in a Web Worker, add a
+small UCI layer (`position … moves …` / `go movetime …` → `bestmove`) and a play UI.
+The `raw-svg-stepper` viewer is the rendering precedent; play needs live input + the
+worker.
+
+**Maintenance:** a forked WASM build must be rebuilt on each FSF release. The only
+way to drop that burden is upstreaming `friendlyJump` (below) so the official
+`fairy-stockfish.wasm` carries it.
+
+### Upstreaming the friendlyJump feature — parked
+
+Goal: get `friendlyJump` into upstream Fairy-Stockfish so Shogi4 runs on the official
+engine/WASM via a plain `.ini`, with no fork to maintain.
+
+Read on the maintainer (from the repo's PR history, mid-2026): active, but closed to
+new *built-in variants* (he directs people to `variants.ini`). A generic *feature*
+like ours is a different bucket — he engages and merges if it's simple, POD,
+consistent with existing options, focused, and core-safe (cf. PR #792, a
+per-piece-region feature that stalled in review iteration, not on principle).
+Realistic failure mode is review-stall, not rejection. He personally maintains the
+Dōbutsu family (PR #991) — a real hook, since Shogi4 is its 4×4 sibling.
+
+Plan: open a **discussion, not a PR**, leading with the live rules article + the
+validation (perft to depth 6, 4,000-position diff), and ask which shape he'd accept:
+the minimal variant flag (our patch) or a betza hurdle-color hopper modifier (more
+general, likely his preference; bigger, touches the betza parser). Pre-empt the three
+known gaps — it only reaches move generation (`attackers_to` doesn't see jumps; fine
+here, no check rule), it's a special case the betza parser doesn't know, and it forces
+`fastAttacks` off.
+
+Draft discussion post (Ideas category):
+
+> Wondering if a friendly-hurdle hop is something you'd ever want in the engine, or
+> whether it's better left to a fork. No expectations either way.
+>
+> Context: I've been solving Shogi4, Oca Studios' public-domain 4×4 animal drop-shogi
+> (the rung above Dōbutsu). It maps cleanly onto a `variants.ini` config except for
+> one rule: a piece may leap an adjacent *friendly* piece to the square two beyond
+> (anti-congestion, one friendly hurdle, no chaining). The grasshopper hops over
+> either color and there's no friendly-only hurdle modifier (per the betza subset in
+> #773), so config can't express it.
+>
+> I have a small working implementation (a `friendlyJump` variant option, ~36 lines,
+> off by default), validated against an independent move generator: perft matches to
+> depth 6 and 4,000 sampled positions agree exactly. Happy to share the patch and
+> numbers if that's useful.
+>
+> If it's something you'd consider, I don't have a strong view on the form (a minimal
+> variant flag, or a hurdle-color modifier on the betza hopper, whichever fits the
+> codebase) and I'm glad to do the work. If it's not a fit upstream, no problem, it
+> lives fine as a fork. Mostly wanted to ask before assuming either way.
+>
+> Variant writeup: https://mistboard.com/rules/shogi4
