@@ -408,16 +408,32 @@ pub fn solve_subgame(extra: &[u8]) -> (u64, u64, u64) {
 // face) states and the 2 hands. Last-rank exclusion is NOT applied here (those
 // few illegal positions are harmless holes), so N counts arrangements x 2 (turn).
 
+// Compile-time Pascal's triangle: all rank/unrank binomials have n,k <= 16, so
+// binom is an O(1) table lookup instead of a u128 multiply/divide loop. This is
+// the per-edge cost driver of the rank-based solver (micro-shogi measured ~167 ns
+// with a plain HashMap; our rank index pays this combinatorial cost per edge).
+const fn binom_table() -> [[u64; 17]; 17] {
+    let mut t = [[0u64; 17]; 17];
+    let mut n = 0;
+    while n <= 16 {
+        t[n][0] = 1;
+        let mut k = 1;
+        while k <= n {
+            t[n][k] = t[n - 1][k - 1] + t[n - 1][k];
+            k += 1;
+        }
+        n += 1;
+    }
+    t
+}
+static BINOM: [[u64; 17]; 17] = binom_table();
+
+#[inline]
 fn binom(n: u64, k: u64) -> u64 {
     if k > n {
         return 0;
     }
-    let k = k.min(n - k);
-    let mut r: u128 = 1;
-    for i in 0..k {
-        r = r * (n - i) as u128 / (i + 1) as u128;
-    }
-    r as u64
+    BINOM[n as usize][k as usize]
 }
 
 /// total! / prod(counts!), where sum(counts) == total

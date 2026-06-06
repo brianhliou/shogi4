@@ -211,16 +211,29 @@ all match the oracle's logic (validated at ≤1.16M; the 51.5M is a new result):
 
 | subgame | legal positions | time | ns/edge | W / L / D |
 |---|---|---|---|---|
-| `{2K+P+F}` | 1,164,704 | 5.5 s | ~396 | 74.5 / 17.8 / 7.7 % |
-| `{2K+P+F+R}` | **51,461,568** | 391 s | **~633** | 80.3 / 18.9 / 0.8 % |
+| `{2K+P+F}` | 1,164,704 | 4.6 s | ~327 | 74.5 / 17.8 / 7.7 % |
+| `{2K+P+F+R}` | **51,461,568** | 304 s | **~493** | 80.3 / 18.9 / 0.8 % |
 
-These are reduced games (fewer pieces), not the full Shogi4 — for validation + calibration, not the
-headline value. **The key signal: `ns/edge` *rises* with working-set size** (396 → 633 as the value
-arrays grow past cache), which is exactly the cost model's external-memory risk showing up
-empirically. At PB scale on NVMe it climbs further, so **keeping access sequential is the dominant
-rung-4 cost driver** — and it places the compute estimate toward the realistic-high end of
-~60–190 core-years, partly offset by the exact-2× LR fold. `{2K + one of each type}` (3.5B) is
-laptop-infeasible — the in-RAM ceiling is ~50–75M. **[measured — solver/src/bin/scale.rs]**
+(ns/edge after a compile-time binomial-table optimization that cut the `rank`/`unrank` per-edge cost
+~17–22%; was 396 → 633.) These are reduced games, for validation + calibration, not the headline
+value. **The key signal: `ns/edge` *rises* with working-set size** (327 → 493 as the value arrays
+grow past cache) — the cost model's external-memory risk, empirically. **Cross-check with
+`../micro-shogi`:** its HashMap solver measured **167 ns** on a small game, but our solver pays the
+**rank-index combinatorial cost per edge** (the price of the only index that scales). So the rung-4
+cost model should use **~330–490 ns — the rank-based reality, not the 167 ns HashMap floor** —
+placing compute in the **middle** of ~60–190 core-years, with the exact-2× LR fold and further
+`rank`/`unrank` tuning as levers. `{2K + one of each type}` (3.5B) is laptop-infeasible — the in-RAM
+ceiling is ~50–75M. **[measured — solver/src/bin/scale.rs]**
+
+**Relationship to `../micro-shogi` (the bigger rung, now paused).** Micro Shogi's own session
+independently recommended solving 4×4 *first* as the de-risk, and its production-architecture
+to-build list — a combinatorial rank to replace the HashMap, un-move generation, SCC/BSP streaming,
+deterministic checkpoint-recovery — is exactly what Shogi4 has **already built and validated**. So
+Shogi4's solver is the production solver Micro will inherit (Micro is still HashMap-bound, ceiling
+~10⁸). Optimizations to pull from Micro's analysis for the full Shogi4 run: 2-bit W/L/D packing,
+post-solve compression (~7–10× → a small downloadable artifact, Syzygy precedent), mmap value
+arrays, SIMD/bitboard move-gen. The compressed artifact hosts free (Internet Archive + torrent),
+~$0–200/mo. **[reference — micro-shogi/research/session-2026-06-05.md]**
 
 **Distributed correctness — validated on one machine, for $0.** `sharded_check` simulates the
 rung-4 distributed solver: rank-range **shards** (each owning its slots' value+counter), predecessor
