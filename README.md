@@ -29,7 +29,7 @@ The largest solve is a reduced game, the two kings plus one of each piece type (
 | Loss | 16.16% |
 | Draw | 4.69% |
 
-It also calibrates cost per edge at scale (~697 ns/edge out of cache), which anchors the full-solve projection. This is a reduced game used to prove the engine past laptop memory; drops conserve material, so the real game never reaches it.
+It also calibrates cost per edge at scale (~697 ns/edge out of cache), which anchors the full-solve projection. This is a reduced game used to push the engine far past the small validation subgames; drops conserve material, so the real game never reaches it.
 
 ## Reproduce
 
