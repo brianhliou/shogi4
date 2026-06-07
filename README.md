@@ -1,90 +1,57 @@
-# shogi4
+# Shogi4: a strong-solution engine for 4×4 drop-shogi
 
-> Research project: scope and compute the **first complete strong solution** of **Shogi4** —
-> Oca Studios' public-domain 4×4 animal drop-shogi. Treat it like science: every number carries
-> its source, estimates are bracketed, and the exact ruleset is nailed before anything is solved.
+Shogi4 is a public-domain 4×4 drop-shogi by Oca Studios. This repo is a complete, oracle-validated strong-solution engine for it. Its rules, lost when the publisher's app was delisted, were recovered by decompiling that app; the solver was built from scratch, cross-checked three ways against an independent implementation, and run at 2.1 billion positions on rented hardware. The full solve is designed, verified in simulation, and calibrated, but not run: it would take roughly 50 to 100 TB and 130 to 190 core-years, which the result does not justify.
 
-This is the third entry in a small-shogi solving trilogy:
+A narrative writeup (*Partially Solving Shogi4*) is on [brianhliou.com](https://brianhliou.com), and the recovered rules are at [mistboard.com/articles/shogi4](https://mistboard.com/articles/shogi4).
 
-| Repo | Game | Board | State-space (reachable) | Solve regime |
+The third entry in a small-shogi solving trilogy:
+
+| Repo | Game | Board | Reachable positions | Solve regime |
 |---|---|---|---|---|
-| [`dobutsu-shogi`](../dobutsu-shogi) | Dōbutsu Shōgi | 3×4 (12 sq) | 246,803,167 *(measured)* | laptop, ~75 min |
-| **`shogi4`** *(this repo)* | **Shogi4** | **4×4 (16 sq)** | **~3×10¹³ *(upper 2.05×10¹⁴ exact)*** | **external-memory, ~8 TB** |
-| [`micro-shogi`](../micro-shogi) | Micro Shogi | 4×5 (20 sq) | ~5×10¹⁴ *(bracketed)* | ~16-node cluster, ~$10–15k |
+| [dobutsu-shogi](https://github.com/brianhliou/dobutsu-shogi) | Dōbutsu Shōgi | 3×4 | 246,803,167 | solved, in memory |
+| **shogi4** (this) | **Shogi4** | **4×4** | **~3×10¹³** | external-memory, ~50–100 TB, designed not run |
+| micro-shogi | Micro Shogi | 4×5 | ~10¹⁵ | open frontier |
 
-Shogi4 sits between them — and the enumerator shows it's a genuine **external-memory** solve
-(~8 TB W/L/D), only ~15–20× smaller than Micro Shogi: finishable on one high-memory or NVMe
-machine rather than a cluster, but well past the laptop regime. (An earlier scaffolding guess of
-"~10⁹–10¹¹, RAM-resident" was wrong by 3–4 orders of magnitude — the enumerator corrected it.)
+## What's here
 
-## Why Shogi4 is worth solving
+- **A from-scratch rules engine** (Rust in `solver/`, Python reference oracle in `engine/`), recovered from the decompiled app and cross-validated: perft matches to the digit, a 4,000-position differential test passes with zero mismatches, and three independent solvers agree to the unit.
+- **A dense-rank index** (position ↔ integer bijection), the flat-array replacement for a hash map that lets the value table scale past memory. Its full-game domain is N = 410,297,064,507,360, exactly twice the independent arrangement count.
+- **A push-based retrograde solver** over the rank index using un-move generation, plus a **sharded BSP distributed design** validated in simulation: confluent across shard counts, with a verification audit at ~55% of solve cost and deterministic crash recovery.
+- **A sourced research ledger** in [`research/findings.md`](research/findings.md): every number with its provenance.
 
-- **It has never been solved.** No academic paper, no published game value, no oracle. The
-  strong solution — is it a first- or second-player win, or a draw, and in how many plies — is
-  a genuinely new result. Nobody knows the answer yet.
-- **It's public domain.** Oca Studios released the whole "Four" series under public domain, so
-  we're free to solve it, fork it, and publish the result, crediting Oca.
-- **It's a different game, not "wider Dōbutsu."** Shogi4 has a **friendly-jump** rule (pieces
-  leap over their own pieces — Dōbutsu has nothing like it), promotion for four of five piece
-  types, a drop restriction, and **no "Try"/king-march win** (Dōbutsu has one). The move model
-  is meaningfully different, which is most of the engineering.
+## Result
 
-## The challenge (what makes this non-trivial)
+The largest solve is a reduced game, the two kings plus one of each piece type (2,100,849,024 positions), on a 16-core / 64 GB box in 5.3 hours:
 
-1. **Recovering the exact ruleset from the primary source.** Solving the wrong rules is
-   worthless. Oca's print-and-play PDF and per-piece movement diagrams are the ground truth —
-   and at scaffold time the live server is down and the PDF was never archived. Three specifics
-   are still open (see [`research/open-questions.md`](research/open-questions.md)).
-2. **A bigger board with a different move model.** 16 squares, one extra piece type per side,
-   friendly-jump move generation — the Dōbutsu solver has to be re-derived, not just re-pointed.
-3. **No oracle.** Unlike Dōbutsu (checkable against Tanaka and clausecker), correctness here has
-   to be *manufactured*: brute-force forward minimax on small positions, two independent
-   implementations, and full-table consistency audits.
+| Outcome (side to move) | Share |
+|---|---|
+| Win | 79.15% |
+| Loss | 16.16% |
+| Draw | 4.69% |
 
-## Status
+It also calibrates cost per edge at scale (~697 ns/edge out of cache), which anchors the full-solve projection. This is a reduced game used to prove the engine past laptop memory; drops conserve material, so the real game never reaches it.
 
-**Scoping.** No solver yet. The cheap, high-leverage milestones come first:
+## Reproduce
 
-1. **Recover the exact ruleset** from Oca's primary source — starting setup, every piece's
-   movement (regular + evolved), and the drop restriction. **This gates everything.**
-   *(✅ done — decompiled from the official Oca app `com.ocastudios.shogi4`; see `research/`)*
-2. **Rules engine + validation.** Python reference (`engine/`, the oracle — a port of the
-   decompiled app), Rust engine (`solver/`), perft, and a two-solver + audit correctness gate.
-   *(✅ done — Rust perft matches the oracle to the digit + a 4,000-position golden diff passes;
-   retrograde == value-iteration + clean audit on subgames up to 1.16M positions.)*
-3. **State-space enumerator** — reproduce Tanaka's Dōbutsu upper bound to the digit, then count
-   Shogi4. *(✅ done — upper bound 2.05×10¹⁴ exact; reachable ~3×10¹³; ~8 TB W/L/D. Exact reachable
-   awaits the full solve. See `research/repro/`.)*
-4. **Full strong solve** (W/L/D + DTM) — external-memory retrograde on one high-memory/NVMe machine
-   (~2–6 core-years, ~8 TB), reusing the Dōbutsu pipeline. *(open — the first real compute spend)*
-5. **Explorer + article**, reusing the Dōbutsu formats. *(open)*
+```bash
+cd solver
+cargo test --release
+```
+
+Ten tests reproduce every correctness claim: perft, the cross-language oracle diff, all three solvers agreeing, the rank bijection, un-move generation, the left-right symmetry fold, and the verification audit.
 
 ## Layout
 
 ```
-engine/                — Python reference engine (the oracle): move-gen, perft,
-  shogi4.py              retrograde + value-iteration subgame solvers, audit
-  gen_golden.py          golden position->moves generator for cross-language testing
-  golden.txt             4,000 oracle positions+moves (the Rust diff fixture)
-solver/                — Rust engine (validated to the digit); grows into the solver
-  src/lib.rs             rules engine + perft + golden verifier
-  src/main.rs            perft + golden differential-test driver
-research/
-  findings.md          — verified facts ledger (numbers + sources, confidence-tagged)
-  open-questions.md    — the backlog (Q1 ruleset resolved; solve-correctness contract in Q5)
-  prior-art.md         — the 4×4 landscape: Shogi4's recovered rules, other 4×4 attempts, why
-                         there's no canonical 4×4 and none on Wikipedia
-  prior-art-evidence/  — committed primary-source artifacts (Oca board graphic, decompiled logic)
+solver/      Rust engine, solver, and the validation suite (the production artifact)
+engine/      Python reference oracle (a port of the decompiled app) + golden fixtures
+research/    findings.md (sourced ledger), open questions, prior art, run logs
+docs/        the research brief and the partial-run runbook
+explorer/    interactive board / rules viewer
 ```
 
-## Primary source
+## Source and credits
 
-Shogi4 — Oca Studios, "Four" series (public domain) · <https://ocastudios.com/four/shogi/>
-· BGG <https://boardgamegeek.com/boardgame/146291/shogi4>
+Shogi4 by Oca Studios, "Four" series, released public domain. Rules recovered from the official app `com.ocastudios.shogi4` and documented at [mistboard.com/articles/shogi4](https://mistboard.com/articles/shogi4).
 
----
-
-Built by Brian Liou with Claude (Anthropic) — sibling to `dobutsu-shogi` and `micro-shogi`.
-
-> Note: this README is a working scoping doc. The polished public hero gets drafted via the
-> `draft-voice` skill when the project nears distribution.
+Built by Brian Liou, sibling to [dobutsu-shogi](https://github.com/brianhliou/dobutsu-shogi). See [`LICENSE`](LICENSE).

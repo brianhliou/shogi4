@@ -29,3 +29,6 @@ venv/
 *.swp
 .idea/
 .vscode/
+
+# Article draft + local render (the post's home is the blog repo)
+/writeup/
