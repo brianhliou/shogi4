@@ -2,7 +2,7 @@
 
 *Brian Liou · June 2026*
 
-Drop-shogi is the live frontier of strongly-solved games. Dōbutsu Shōgi (3×4) is the largest one solved — Tanaka strongly solved it in 2009. I reproduced that solution from scratch and validated it position-by-position against `clausecker/dobutsu`, then built and validated the **complete strong-solution engine for the next rung up, Shogi4** (a public-domain 4×4 drop-shogi), ran it at billions of positions on rented hardware, and de-risked the full distributed solve to the point where only the compute run remains. The rung after that, Micro Shogi (4×5), is open.
+Drop-shogi is the live frontier of strongly-solved games. Dōbutsu Shōgi (3×4) is the largest one solved — Tanaka strongly solved it in 2009. I reproduced that solution from scratch and validated it position-by-position against `clausecker/dobutsu`, then built and validated the **complete strong-solution engine for the next rung up, Shogi4** (a public-domain 4×4 drop-shogi), ran it at billions of positions on rented hardware, and tested the full distributed path on closed games. The rung after that, Micro Shogi (4×5), is open.
 
 | Game | Board | Reachable positions | Status |
 |---|---|---|---|
@@ -18,7 +18,7 @@ Shogi4 has never been solved — no published game value exists. It's public dom
 
 ## The artifact
 
-**Rules, recovered.** Shogi4's authoritative rules were unreachable — the publisher's server is dead and the print-and-play rulesheet was never archived. I recovered them by decompiling the delisted official app (a Python/SDL build whose payload was hidden as a fake `.mp3`); its move-generation logic *is* the authoritative ruleset, including a "friendly-jump" mechanic and capture-flip promotion.
+**Rules, recovered.** Shogi4's authoritative rules were unreachable — the publisher's server is dead and the print-and-play rulesheet was never archived. I recovered them from the official Android package (a Python/Kivy build whose payload was hidden as a fake `.mp3`); its move-generation logic *is* the authoritative ruleset, including a "friendly-jump" mechanic and capture-flip promotion.
 
 **A from-scratch solver, validated against an independent oracle.** The Rust engine is move generation, a dense position-ranking bijection, un-move generation, and push-based retrograde. Every component is cross-checked against a separate Python reference (a port of the decompiled app):
 
@@ -53,4 +53,4 @@ The same ladder continues to Micro Shogi (~19× larger, the open frontier), whos
 
 ## About
 
-Solo and independent. The full source — engine, validation harnesses, and the research ledger that records every number with its provenance and every self-correction — is reproducible end-to-end and available on request. The natural next step is the distributed run itself, on a cluster: the pipeline is validated against an oracle, the cost is calibrated, and the distributed design is proven correct under sharding and worker failure. I'd welcome collaboration with anyone working in this lineage.
+Solo and independent. The full source — engine, validation harnesses, and the research ledger that records every number with its provenance and every self-correction — is public and reproducible end-to-end. The natural next step is the distributed run itself, on a cluster: the pipeline is validated against an oracle, the cost is calibrated, and the distributed path is checked against closed games under sharding and worker failure. I'd welcome collaboration with anyone working in this lineage.

@@ -1,8 +1,8 @@
 # Shogi4: a strong-solution engine for 4×4 drop-shogi
 
-Shogi4 is a public-domain 4×4 drop-shogi by Oca Studios. This repo is a complete, oracle-validated strong-solution engine for it. Its rules, lost when the publisher's app was delisted, were recovered by decompiling that app; the solver was built from scratch, cross-checked three ways against an independent implementation, and run at 2.1 billion positions on rented hardware. The full solve is designed, verified in simulation, and calibrated, but not run: it would take roughly 50 to 100 TB and 130 to 190 core-years, which the result does not justify.
+Shogi4 is a public-domain 4×4 drop-shogi by Oca Studios. This repo is a complete, oracle-validated strong-solution engine for it. Its rules, lost from the public web, were recovered from the official Android package; the solver was built from scratch, cross-checked three ways against an independent implementation, and run at 2.1 billion positions on rented hardware. The full solve is designed, tested on closed games, and calibrated, but not run at full scale: it would take roughly 50 to 100 TB and 130 to 190 core-years, which the result does not justify.
 
-A narrative writeup (*Partially Solving Shogi4*) is on [brianhliou.com](https://brianhliou.com), and the recovered rules are at [mistboard.com/articles/shogi4](https://mistboard.com/articles/shogi4).
+A narrative writeup (*Partially Solving Shogi4*) is on [brianhliou.com](https://brianhliou.com), and the recovered rules are at [mistboard.com/rules/shogi4](https://mistboard.com/rules/shogi4).
 
 The third entry in a small-shogi solving trilogy:
 
@@ -16,7 +16,7 @@ The third entry in a small-shogi solving trilogy:
 
 - **A from-scratch rules engine** (Rust in `solver/`, Python reference oracle in `engine/`), recovered from the decompiled app and cross-validated: perft matches to the digit, a 4,000-position differential test passes with zero mismatches, and three independent solvers agree to the unit.
 - **A dense-rank index** (position ↔ integer bijection), the flat-array replacement for a hash map that lets the value table scale past memory. Its full-game domain is N = 410,297,064,507,360, exactly twice the independent arrangement count.
-- **A push-based retrograde solver** over the rank index using un-move generation, plus a **sharded BSP distributed design** validated in simulation: confluent across shard counts, with a verification audit at ~55% of solve cost and deterministic crash recovery.
+- **A push-based retrograde solver** over the rank index using un-move generation, plus a **sharded BSP distributed design** tested on closed games: confluent across shard counts, with a verification audit at ~55% of solve cost and deterministic crash recovery.
 - **A sourced research ledger** in [`research/findings.md`](research/findings.md): every number with its provenance.
 
 ## Result
@@ -52,6 +52,6 @@ explorer/    interactive board / rules viewer
 
 ## Source and credits
 
-Shogi4 by Oca Studios, "Four" series, released public domain. Rules recovered from the official app `com.ocastudios.shogi4` and documented at [mistboard.com/articles/shogi4](https://mistboard.com/articles/shogi4).
+Shogi4 by Oca Studios, "Four" series, released public domain. Rules recovered from the official Android package `com.ocastudios.shogi4` and documented at [mistboard.com/rules/shogi4](https://mistboard.com/rules/shogi4).
 
 Built by Brian Liou, sibling to [dobutsu-shogi](https://github.com/brianhliou/dobutsu-shogi). See [`LICENSE`](LICENSE).
