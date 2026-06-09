@@ -24,6 +24,7 @@ venv/
 # Generated standalone game viewer (rebuild: python3 engine/make_viewer.py)
 /engine/viewer/
 # Vercel static build output.
+/.vercel/
 /public/
 
 # OS / editor
