@@ -23,6 +23,8 @@ venv/
 /engine/Fairy-Stockfish/
 # Generated standalone game viewer (rebuild: python3 engine/make_viewer.py)
 /engine/viewer/
+# Vercel static build output.
+/public/
 
 # OS / editor
 .DS_Store
