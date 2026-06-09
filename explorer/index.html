@@ -5,6 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Shogi4 — interactive board (rules viewer)</title>
 <meta name="description" content="Shogi4 (Oca Studios' public-domain 4×4 animal drop-shogi): play through games on a board backed by the validated rules engine. Friendly-jumps, far-rank promotion, and drops, all legal-move-checked. Not yet solved — legal moves only.">
+<link rel="canonical" href="https://shogi4.brianhliou.com/">
+<link rel="icon" href="/pieces/crane.png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://shogi4.brianhliou.com/">
+<meta property="og:title" content="Shogi4 — Interactive Rules Viewer">
+<meta property="og:description" content="Play Shogi4, Oca Studios' public-domain 4×4 animal drop-shogi, in a legal-move-only browser viewer.">
+<meta property="og:image" content="https://shogi4.brianhliou.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Shogi4 — Interactive Rules Viewer">
+<meta name="twitter:description" content="A free-play browser viewer for Shogi4, a 4×4 animal drop-shogi.">
+<meta name="twitter:image" content="https://shogi4.brianhliou.com/og.png">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":"Shogi4 Interactive Rules Viewer","applicationCategory":"GameApplication","operatingSystem":"Web","url":"https://shogi4.brianhliou.com/","description":"A free-play browser viewer for Shogi4, Oca Studios' public-domain 4x4 animal drop-shogi, showing legal moves only.","author":{"@type":"Person","name":"Brian Liou","url":"https://brianhliou.com"},"isBasedOn":"https://github.com/brianhliou/shogi4"}
+</script>
 <style>
   :root {
     --ink:#1f2328; --muted:#6b7280; --accent:#d98a2b;
@@ -19,7 +35,7 @@
          margin:0; padding:10px 16px; line-height:1.5; display:flex; flex-direction:column;
          gap:8px; overflow:hidden; }
   h1 { margin:0; }
-  button, select { font:inherit; padding:4px 11px; border:1px solid #d4d4d8;
+  button { font:inherit; padding:4px 11px; border:1px solid #d4d4d8;
            background:#fff; border-radius:7px; cursor:pointer; }
   button:hover { background:#f3f3f3; }
 
@@ -91,7 +107,6 @@
   .controls { flex:0 0 auto; display:flex; gap:6px; align-items:center; flex-wrap:wrap;
               padding:7px 12px; border-top:1px solid #eee; background:#fbfaf6; }
   .controls button { padding:3px 10px; font-size:.9rem; line-height:1.15; }
-  .controls select { padding:3px 8px; font-size:.85rem; max-width:150px; }
   .controls .sp { flex:1 1 auto; }
   .secthdr { flex:0 0 auto; font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
              color:#9a8a62; padding:9px 14px 4px; border-top:1px solid #eee; }
@@ -131,6 +146,8 @@
     <span class="tagline">A 4×4 animal drop-shogi — played move by move.</span>
     <nav class="hlinks">
       <button class="navbtn" id="howBtn">How it works</button>
+      <a href="https://github.com/brianhliou/shogi4">GitHub</a>
+      <a href="https://brianhliou.com/">Brian Liou</a>
     </nav>
   </header>
 
@@ -145,7 +162,6 @@
     <aside class="panel">
       <div class="status" id="status">…</div>
       <div class="controls">
-        <select id="clipSel" title="Load a recorded line"><option value="">Free play</option></select>
         <button id="reset" title="Reset to start">↺</button>
         <button id="back" title="Step back">◀</button>
         <button id="fwd" title="Step forward">▶</button>
@@ -193,8 +209,7 @@
       <p>Shogi4 is <strong>not solved yet</strong> — there is no tablebase, so this viewer shows
         <strong>legal moves only</strong> (no win/loss verdicts). Every move comes from the
         project's rules engine, validated to the digit against the decompiled official app. Drag a
-        piece or click a move to play; <strong>◀ ▶</strong> step the line; the dropdown loads
-        recorded lines (try the rule demos). When the strong solution is computed, each move will
+        piece or click a move to play; <strong>◀ ▶</strong> step the line. When the strong solution is computed, each move will
         also carry its result and distance-to-mate.</p>
       <p class="credit">Shogi4 and its piece artwork © Oca Studios, released into the public domain.
         Engine + viewer by Brian Liou.</p>
@@ -224,9 +239,22 @@ const CELL = 96, MX = 34, MY = 28, SVGW = 430, SVGH = 424;
 const INITIAL = "KFRTP......ptrfk;0000;0000;1";
 const FILES = ["a", "b", "c", "d"];
 const HAND_SLOTS = ["P", "T", "R", "F"];  // the base types a hand can hold
+const BASE = ["P", "T", "R", "F"];
+const PROMO = { P:"O", T:"B", R:"N", F:"G" };
+const DEMOTE = { O:"P", B:"T", N:"R", G:"F" };
+const DIRS = {
+  K:[[-1,0],[1,0],[0,1],[0,-1],[-1,1],[1,1],[-1,-1],[1,-1]],
+  F:[[-1,0],[1,0],[0,1],[0,-1]],
+  R:[[-1,1],[1,1],[-1,-1],[1,-1]],
+  P:[[0,1]],
+  T:[[0,1],[-1,1],[1,1]],
+  O:[[0,1],[-1,1],[1,1],[-1,-1],[1,-1]],
+  B:[[0,1],[-1,1],[1,1],[-1,-1],[1,-1]],
+  N:[[0,1],[-1,1],[1,1],[-1,-1],[1,-1]],
+  G:[[0,1],[-1,1],[1,1],[-1,0],[1,0],[0,-1]]
+};
 
 // ---- state ----
-let CLIPS = {};                  // id -> clip (loaded from clips.json)
 let line = [{ pos: INITIAL, move: null, from: null, to: null }];
 let cursor = 0;
 let curParsed = null, curMoves = [];
@@ -253,6 +281,159 @@ function parsePos(enc) {
   const hand = s => ({ P:+s[0], T:+s[1], R:+s[2], F:+s[3] });
   return { side: stm === "1" ? "sente" : "gote", cells: out,
            hands: { sente: hand(h1), gote: hand(h2) } };
+}
+
+function encodePos(parsed) {
+  const occ = {};
+  parsed.cells.forEach(p => occ[p.c + "," + p.r] = p);
+  let cells = "";
+  for (let r = 1; r <= 4; r++) for (let c = 1; c <= 4; c++) {
+    const p = occ[c + "," + r];
+    cells += p ? (p.owner === "sente" ? p.piece : p.piece.toLowerCase()) : ".";
+  }
+  const hand = owner => BASE.map(p => parsed.hands[owner][p] || 0).join("");
+  return `${cells};${hand("sente")};${hand("gote")};${parsed.side === "sente" ? 1 : 2}`;
+}
+
+function cloneParsed(parsed) {
+  return {
+    side: parsed.side,
+    cells: parsed.cells.map(p => ({ ...p })),
+    hands: {
+      sente: { ...parsed.hands.sente },
+      gote: { ...parsed.hands.gote }
+    }
+  };
+}
+
+function opponent(side) { return side === "sente" ? "gote" : "sente"; }
+function onBoard(c, r) { return c >= 1 && c <= 4 && r >= 1 && r <= 4; }
+function sqName(s) { return FILES[s.c - 1] + s.r; }
+
+function boardMap(parsed) {
+  const m = {};
+  parsed.cells.forEach(p => m[p.c + "," + p.r] = p);
+  return m;
+}
+
+function pieceDests(parsed, piece) {
+  const occ = boardMap(parsed);
+  const fwd = piece.owner === "sente" ? 1 : -1;
+  const out = [];
+  for (const [dc, drf] of DIRS[piece.piece]) {
+    const dr = drf * fwd;
+    const step = { c: piece.c + dc, r: piece.r + dr };
+    if (!onBoard(step.c, step.r)) continue;
+    out.push(step);
+    const atStep = occ[step.c + "," + step.r];
+    if (atStep && atStep.owner === piece.owner) {
+      const jump = { c: piece.c + 2 * dc, r: piece.r + 2 * dr };
+      if (onBoard(jump.c, jump.r)) out.push(jump);
+    }
+  }
+  return out;
+}
+
+function legalMoveSpecs(parsed) {
+  const me = parsed.side;
+  const occ = boardMap(parsed);
+  const moves = [];
+  for (const p of parsed.cells) {
+    if (p.owner !== me) continue;
+    for (const d of pieceDests(parsed, p)) {
+      const target = occ[d.c + "," + d.r];
+      if (target && target.owner === me) continue;
+      moves.push({ kind:"m", from:{ c:p.c, r:p.r }, to:d });
+    }
+  }
+  const lastRank = me === "sente" ? 4 : 1;
+  for (const piece of BASE) {
+    if ((parsed.hands[me][piece] || 0) <= 0) continue;
+    for (let c = 1; c <= 4; c++) for (let r = 1; r <= 4; r++) {
+      if (r === lastRank || occ[c + "," + r]) continue;
+      moves.push({ kind:"d", piece, to:{ c, r } });
+    }
+  }
+  return moves;
+}
+
+function makeMove(parsed, mv) {
+  const child = cloneParsed(parsed);
+  const me = parsed.side;
+  let terminal = false;
+  if (mv.kind === "m") {
+    const srcIdx = child.cells.findIndex(p => p.c === mv.from.c && p.r === mv.from.r);
+    const moving = child.cells[srcIdx];
+    const dstIdx = child.cells.findIndex(p => p.c === mv.to.c && p.r === mv.to.r);
+    if (dstIdx >= 0) {
+      const captured = child.cells[dstIdx];
+      if (captured.piece === "K") terminal = true;
+      else {
+        const base = DEMOTE[captured.piece] || captured.piece;
+        child.hands[me][base] = (child.hands[me][base] || 0) + 1;
+      }
+      child.cells.splice(dstIdx, 1);
+      if (dstIdx < srcIdx) child.cells.splice(srcIdx - 1, 1);
+      else child.cells.splice(srcIdx, 1);
+    } else {
+      child.cells.splice(srcIdx, 1);
+    }
+    const lastRank = me === "sente" ? 4 : 1;
+    const piece = BASE.includes(moving.piece) && mv.to.r === lastRank ? PROMO[moving.piece] : moving.piece;
+    child.cells.push({ c: mv.to.c, r: mv.to.r, piece, owner: me });
+  } else {
+    child.hands[me][mv.piece] -= 1;
+    child.cells.push({ c: mv.to.c, r: mv.to.r, piece: mv.piece, owner: me });
+  }
+  child.cells.sort((a, b) => (a.r - b.r) || (a.c - b.c));
+  child.side = opponent(me);
+  return { child, terminal };
+}
+
+function moveNotation(parsed, mv) {
+  const me = parsed.side;
+  if (mv.kind === "m") {
+    const moving = parsed.cells.find(p => p.c === mv.from.c && p.r === mv.from.r);
+    const target = parsed.cells.find(p => p.c === mv.to.c && p.r === mv.to.r);
+    const sep = target && target.owner !== me ? "x" : "-";
+    const promo = BASE.includes(moving.piece) && mv.to.r === (me === "sente" ? 4 : 1);
+    return `${moving.piece}${sqName(mv.from)}${sep}${sqName(mv.to)}${promo ? "+" : ""}`;
+  }
+  return `${mv.piece}*${sqName(mv.to)}`;
+}
+
+function describeMove(parsed, mv) {
+  const me = parsed.side;
+  const made = makeMove(parsed, mv);
+  const out = {
+    kind: mv.kind,
+    notation: moveNotation(parsed, mv),
+    terminal: made.terminal,
+    child: encodePos(made.child),
+    to: mv.to
+  };
+  if (mv.kind === "m") {
+    const moving = parsed.cells.find(p => p.c === mv.from.c && p.r === mv.from.r);
+    const target = parsed.cells.find(p => p.c === mv.to.c && p.r === mv.to.r);
+    out.from = mv.from;
+    out.piece = moving.piece;
+    out.capture = !!target && target.owner !== me;
+    out.promo = BASE.includes(moving.piece) && mv.to.r === (me === "sente" ? 4 : 1);
+    out.jump = Math.abs(mv.to.c - mv.from.c) === 2 || Math.abs(mv.to.r - mv.from.r) === 2;
+  } else {
+    out.from = null;
+    out.piece = mv.piece;
+    out.capture = false;
+    out.promo = false;
+    out.jump = false;
+  }
+  return out;
+}
+
+function api(enc) {
+  const parsed = parsePos(enc);
+  return { pos: enc, stm: parsed.side === "sente" ? 1 : 2,
+           moves: legalMoveSpecs(parsed).map(m => describeMove(parsed, m)) };
 }
 
 // ---- SVG pieces (authentic Oca art; each tile already carries its movement
@@ -454,7 +635,7 @@ function renderLine() {
   if (cur) cur.scrollIntoView({ block: "nearest" });
 }
 
-// ---- core: render a position from /api data ----
+// ---- core: render a position from the in-browser rules engine ----
 function render(data) {
   curParsed = parsePos(data.pos);
   curMoves = data.moves;
@@ -468,20 +649,12 @@ function render(data) {
   renderBoard(curParsed); renderStatus(); renderMoves(); renderLine();
 }
 
-async function fetchPos(enc) {
-  const r = await fetch("/api?pos=" + encodeURIComponent(enc));
-  if (!r.ok) throw new Error("server returned " + r.status);
-  const d = await r.json();
-  if (d.error) throw new Error(d.error);
-  return d;
+function fetchPos(enc) {
+  return api(enc);
 }
-async function showPos(enc) {
+function showPos(enc) {
   clearSelection(); hoverTo = null; hoverMove = null; lift = null;
-  try { render(await fetchPos(enc)); }
-  catch (e) {
-    document.getElementById("status").innerHTML =
-      `<span style="color:var(--cap)">Cannot reach the engine.</span><small>Run <code>python3 explorer/serve.py</code> and reload. (${e.message})</small>`;
-  }
+  render(fetchPos(enc));
 }
 
 // render a terminal position (a royal was captured): board from enc, banner, no moves
@@ -514,16 +687,7 @@ function jumpTo(i) {
 function resetGame() {
   line = [{ pos: INITIAL, move: null, from: null, to: null }];
   cursor = 0; lastMove = null; over = null;
-  document.getElementById("clipSel").value = "";
   showPos(INITIAL);
-}
-
-function loadClip(clip) {
-  line = [{ pos: clip.start, move: null, from: null, to: null }];
-  for (const st of clip.steps)
-    line.push({ pos: st.child, move: st.notation, from: st.from, to: st.to, terminal: st.terminal });
-  cursor = 0; lastMove = null; over = null;
-  showPos(clip.start);
 }
 
 // ---- selection + drag (adapted from the Dōbutsu explorer) ----
@@ -620,10 +784,6 @@ document.getElementById("fwd").onclick = () => jumpTo(cursor + 1);
 document.getElementById("lineBar").addEventListener("click", e => {
   const p = e.target.closest(".ply"); if (p) jumpTo(+p.dataset.i);
 });
-document.getElementById("clipSel").addEventListener("change", e => {
-  const id = e.target.value;
-  if (id && CLIPS[id]) loadClip(CLIPS[id]); else resetGame();
-});
 
 // modals
 function openModal(id) { document.getElementById(id).hidden = false; }
@@ -642,8 +802,8 @@ document.querySelectorAll(".modal").forEach(m =>
 document.getElementById("ioCopy").onclick = () =>
   navigator.clipboard.writeText(document.getElementById("ioText").value);
 
-// import: resolve a notation list move-by-move against /api (notation is the key)
-document.getElementById("ioLoad").onclick = async () => {
+// import: resolve a notation list move-by-move against legal moves (notation is the key)
+document.getElementById("ioLoad").onclick = () => {
   const err = document.getElementById("ioErr");
   err.textContent = "";
   let text = document.getElementById("ioText").value.trim();
@@ -655,7 +815,7 @@ document.getElementById("ioLoad").onclick = async () => {
     const newLine = [{ pos: startEnc, move: null, from: null, to: null }];
     let enc = startEnc;
     for (const tok of toks) {
-      const data = await fetchPos(enc);
+      const data = fetchPos(enc);
       const m = data.moves.find(x => x.notation === tok);
       if (!m) throw new Error(`illegal / unknown move: ${tok}`);
       newLine.push({ pos: m.child, move: m.notation, from: m.from, to: m.to, terminal: m.terminal });
@@ -663,7 +823,6 @@ document.getElementById("ioLoad").onclick = async () => {
       enc = m.child;
     }
     line = newLine; cursor = 0; lastMove = null; over = null;
-    document.getElementById("clipSel").value = "";
     closeModals();
     showPos(startEnc);
   } catch (e) { err.textContent = e.message; }
@@ -678,20 +837,7 @@ document.addEventListener("keydown", e => {
 });
 
 // ---- boot ----
-async function boot() {
-  try {
-    const clips = (await (await fetch("/clips.json")).json()).clips || [];
-    const sel = document.getElementById("clipSel");
-    for (const c of clips) {
-      CLIPS[c.id] = c;
-      const o = document.createElement("option");
-      o.value = c.id; o.textContent = c.title;
-      sel.appendChild(o);
-    }
-  } catch { /* clips are optional */ }
-  const q = new URLSearchParams(location.search);
-  const g = q.get("game");
-  if (g && CLIPS[g]) { document.getElementById("clipSel").value = g; loadClip(CLIPS[g]); return; }
+function boot() {
   showPos(INITIAL);
 }
 boot();

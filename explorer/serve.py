@@ -161,8 +161,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         u = urllib.parse.urlparse(self.path)
         if u.path in ("/", "/index.html"):
             self._file("index.html", "text/html; charset=utf-8")
-        elif u.path == "/clips.json":
-            self._file("clips.json", "application/json")
+        elif u.path == "/og.png":
+            self._file("og.png", "image/png")
+        elif u.path == "/og.svg":
+            self._file("og.svg", "image/svg+xml")
+        elif u.path == "/robots.txt":
+            self._file("robots.txt", "text/plain")
+        elif u.path == "/sitemap.xml":
+            self._file("sitemap.xml", "application/xml")
         elif u.path.startswith("/pieces/") and u.path.endswith(".png"):
             rel = u.path[len("/pieces/"):]
             if re.fullmatch(r"(dark/)?[a-z]+\.png", rel):   # optional dark/ variant

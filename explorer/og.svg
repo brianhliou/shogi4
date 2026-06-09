@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#f8f5ec"/>
+  <rect x="72" y="68" width="1056" height="494" rx="28" fill="#fffdf7" stroke="#e0d7c3" stroke-width="3"/>
+  <g transform="translate(120 112)">
+    <rect x="0" y="0" width="384" height="384" rx="18" fill="#f3ead2" stroke="#9c8856" stroke-width="5"/>
+    <rect x="0" y="0" width="384" height="96" rx="18" fill="#efe0bd"/>
+    <rect x="0" y="288" width="384" height="96" rx="18" fill="#efe0bd"/>
+    <clipPath id="boardClip"><rect x="2" y="2" width="380" height="380" rx="16"/></clipPath>
+    <g clip-path="url(#boardClip)">
+      <line x1="96" y1="0" x2="96" y2="384" stroke="#000" stroke-opacity=".11" stroke-width="2"/>
+      <line x1="192" y1="0" x2="192" y2="384" stroke="#000" stroke-opacity=".11" stroke-width="2"/>
+      <line x1="288" y1="0" x2="288" y2="384" stroke="#000" stroke-opacity=".11" stroke-width="2"/>
+      <line x1="0" y1="96" x2="384" y2="96" stroke="#000" stroke-opacity=".11" stroke-width="2"/>
+      <line x1="0" y1="192" x2="384" y2="192" stroke="#000" stroke-opacity=".11" stroke-width="2"/>
+      <line x1="0" y1="288" x2="384" y2="288" stroke="#000" stroke-opacity=".11" stroke-width="2"/>
+    </g>
+    <image href="pieces/tapir.png" x="6" y="6" width="84" height="84" transform="rotate(180 48 48)"/>
+    <image href="pieces/dark/raccoon.png" x="102" y="6" width="84" height="84" transform="rotate(180 144 48)"/>
+    <image href="pieces/dark/fox.png" x="198" y="6" width="84" height="84" transform="rotate(180 240 48)"/>
+    <image href="pieces/pheasant.png" x="294" y="6" width="84" height="84" transform="rotate(180 336 48)"/>
+    <image href="pieces/dark/carp.png" x="294" y="102" width="84" height="84" transform="rotate(180 336 144)"/>
+    <image href="pieces/carp.png" x="6" y="198" width="84" height="84"/>
+    <image href="pieces/crane.png" x="6" y="294" width="84" height="84"/>
+    <image href="pieces/fox.png" x="102" y="294" width="84" height="84"/>
+    <image href="pieces/raccoon.png" x="198" y="294" width="84" height="84"/>
+    <image href="pieces/tapir.png" x="294" y="294" width="84" height="84"/>
+  </g>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="565" y="205" fill="#1f2328" font-size="76" font-weight="800">Shogi4</text>
+    <text x="568" y="264" fill="#6b7280" font-size="31" font-weight="500">interactive rules viewer</text>
+    <text x="568" y="337" fill="#2b2f36" font-size="35" font-weight="650">4x4 animal drop-shogi</text>
+    <text x="568" y="389" fill="#2b2f36" font-size="35" font-weight="650">legal moves only</text>
+    <rect x="568" y="445" width="310" height="50" rx="12" fill="#eaf4ea"/>
+    <text x="592" y="480" fill="#2e7d32" font-size="25" font-weight="750">free play in browser</text>
+  </g>
+</svg>
